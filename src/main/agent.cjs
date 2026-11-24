@@ -178,7 +178,8 @@ class Agent {
         this.emit(chatId, 'user_saved', { message: userMessage, title: chat.title });
       }
 
-      const memoryHits = this.memory.search(text || '', 5);
+      const memoryEnabled = this.store.get('memory.enabled') !== false;
+      const memoryHits = memoryEnabled ? this.memory.search(text || '', 5) : [];
       const systemPrompt = buildSystemPrompt({
         config,
         skills: this.skills,

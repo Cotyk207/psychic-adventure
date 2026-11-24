@@ -76,6 +76,9 @@ const implementations = {
   },
 
   save_memory: async (args, ctx) => {
+    if (ctx.store.get('memory.enabled') === false) {
+      throw new Error('Память выключена в настройках.');
+    }
     const item = ctx.services.memory.add(args.content, args.tags);
     return { text: `🧠 Запомнено: ${item.content}`, data: item };
   },

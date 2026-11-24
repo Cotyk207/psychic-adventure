@@ -91,6 +91,11 @@ function createDefaultConfig() {
       browser: { confirmNavigation: false },
       media: { confirmGenerate: false },
     },
+    memory: {
+      enabled: true,
+      maxItems: 500,
+      autoSave: true,
+    },
     skills: {
       enabled: [
         'web-research', 'coding', 'cyberpunk-design', 'image-prompt',

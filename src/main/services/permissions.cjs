@@ -102,6 +102,15 @@ class PermissionService {
       if (denylist.some((p) => commandMatches(args.command, p))) {
         throw new PermissionError(`Команда заблокирована правилом безопасности: «${truncate(args.command, 80)}»`);
       }
+      const shellMode = this.store.get('permissions.shell.mode') || 'confirm';
+      if (shellMode === 'off') {
+        throw new PermissionError('Терминал отключён в настройках доступа.');
+      }
+      if (shellMode === 'auto') return;
+      if (shellMode === 'allowlist') {
+        const allowlist = this.store.get('permissions.shell.allowlist') || [];
+        if (allowlist.some((p) => commandMatches(args.command, p))) return;
+      }
     }
 
     if (this.sessionAllowed.has(tool.name) && tool.risk !== 'exec') return;

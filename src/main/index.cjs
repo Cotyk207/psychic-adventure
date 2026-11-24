@@ -327,7 +327,12 @@ if (!gotLock) {
       });
     }
 
-    session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));
+    // Микрофон нужен для голосового ввода, уведомления — для «ответ готов».
+    // Всё остальное (геолокация, cookies, экран и т.п.) — запрещено.
+    session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
+      const allowed = ['media', 'notifications', 'clipboard-sanitized-write'];
+      callback(allowed.includes(permission));
+    });
     session.defaultSession.setPermissionCheckHandler(() => false);
 
     createWindow();
