@@ -1,0 +1,254 @@
+/**
+ * Полноценный сквозной E2E-тест всего приложения:
+ * реальный React-интерфейс (.smoke/smoke-entry.mjs)
+ *   ↕ window.psychic из реального src/preload/preload.cjs
+ *   ↕ ipcRenderer / ipcMain со строгой проверкой structuredClone (как в Electron)
+ *   ↕ реальный src/main/index.cjs, ipc.cjs, сервисы, хранилище, агент и инструменты.
+ *
+ * Ловит любые несоответствия форматов ответов main ↔ renderer, неклонируемые
+ * структуры в IPC, гонки сохранения настроек и падения экранов.
+ */
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { createRequire } from 'node:module';
+import { JSDOM } from 'jsdom';
+
+const require = createRequire(import.meta.url);
+const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'psychic-e2e-'));
+process.env.PSYCHIC_TEST_HOME = userData;
+require('../test/setup.cjs');
+
+const electron = require('electron');
+
+const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', {
+  url: 'http://localhost/',
+  pretendToBeVisual: true,
+});
+
+const { window } = dom;
+for (const key of [
+  'window', 'document', 'HTMLElement', 'HTMLInputElement', 'HTMLTextAreaElement',
+  'Node', 'Element', 'MutationObserver', 'getComputedStyle', 'requestAnimationFrame',
+  'cancelAnimationFrame', 'localStorage', 'location', 'CustomEvent', 'Event',
+  'KeyboardEvent', 'MouseEvent', 'Blob', 'File', 'FileReader', 'ImageData', 'DOMParser',
+]) {
+  if (window[key] !== undefined) globalThis[key] = window[key];
+}
+globalThis.window = window;
+globalThis.self = window;
+globalThis.document = window.document;
+try {
+  Object.defineProperty(globalThis, 'navigator', { value: window.navigator, configurable: true });
+} catch {}
+
+window.confirm = () => true;
+if (window.HTMLCanvasElement) {
+  window.HTMLCanvasElement.prototype.getContext = () => null;
+}
+window.matchMedia = window.matchMedia || ((query) => ({
+  matches: false, media: query, onchange: null,
+  addListener() {}, removeListener() {},
+  addEventListener() {}, removeEventListener() {}, dispatchEvent() { return false; },
+}));
+class RO { observe() {} unobserve() {} disconnect() {} }
+globalThis.ResizeObserver = RO;
+window.ResizeObserver = RO;
+
+class AudioStub {
+  constructor() { this.volume = 0.7; this.src = ''; this.currentTime = 0; this.duration = 120; }
+  addEventListener() {}
+  play() { return Promise.resolve(); }
+  pause() {}
+}
+globalThis.Audio = AudioStub;
+window.Audio = AudioStub;
+
+class SR {}
+globalThis.SpeechRecognition = SR;
+globalThis.webkitSpeechRecognition = SR;
+window.SpeechRecognition = SR;
+window.webkitSpeechRecognition = SR;
+globalThis.speechSynthesis = { speak() {}, cancel() {}, getVoices: () => [] };
+window.speechSynthesis = globalThis.speechSynthesis;
+globalThis.SpeechSynthesisUtterance = class { constructor(t) { this.text = t; } };
+window.SpeechSynthesisUtterance = globalThis.SpeechSynthesisUtterance;
+
+// Заглушаем внешние сетевые вызовы (обновления GitHub и стриминг LLM), не трогая локальную логику.
+let agentTurn = 0;
+globalThis.fetch = async (url, init = {}) => {
+  const u = String(url);
+  if (u.includes('api.github.com/repos/')) {
+    return new Response(JSON.stringify({ tag_name: 'v1.0.0', html_url: 'https://github.com/Cotyk207/psychic-adventure/releases' }), { status: 200 });
+  }
+  if (u.endsWith('/models')) {
+    return new Response(JSON.stringify({ data: [{ id: 'openai' }, { id: 'mistral' }] }), { status: 200 });
+  }
+  if (!u.endsWith('/chat/completions')) {
+    return new Response('ok', { status: 200 });
+  }
+  const reqBody = init.body ? JSON.parse(init.body) : {};
+  if (!reqBody.stream) {
+    return new Response(JSON.stringify({ choices: [{ message: { content: 'Заметка E2E' } }] }), { status: 200 });
+  }
+  agentTurn += 1;
+  const info = await electron.ipcRenderer.invoke('app:getInfo');
+  const notePath = path.join(info.paths.workspace, 'e2e-note.txt');
+  const chunks = agentTurn === 1
+    ? [
+        `data: ${JSON.stringify({ choices: [{ delta: { tool_calls: [{ index: 0, id: 'tc-e2e', function: { name: 'write_file', arguments: JSON.stringify({ path: notePath, content: 'Привет из E2E!' }) } }] } }] })}\n\n`,
+        'data: [DONE]\n\n',
+      ]
+    : [
+        'data: {"choices":[{"delta":{"content":"Заметка успешно записана в рабочую папку!"}}]}\n\n',
+        'data: [DONE]\n\n',
+      ];
+  const enc = new TextEncoder();
+  return new Response(new ReadableStream({
+    start(c) { for (const ch of chunks) c.enqueue(enc.encode(ch)); c.close(); },
+  }), { status: 200 });
+};
+
+// Запускаем реальный main-процесс и реальный preload.cjs!
+const mainApp = require('../src/main/index.cjs');
+await electron.app.whenReady();
+await new Promise((r) => setTimeout(r, 80));
+
+// Засеем один трек в папку музыки, чтобы проверить рендер и кнопку «Обновить» на реальных данных
+const bootInfo = await electron.ipcRenderer.invoke('app:getInfo');
+const sampleTrack = path.join(bootInfo.paths.music, 'synthwave-demo.mp3');
+fs.mkdirSync(path.dirname(sampleTrack), { recursive: true });
+fs.writeFileSync(sampleTrack, Buffer.alloc(2048, 1));
+
+require('../src/preload/preload.cjs');
+
+const errors = [];
+const origErr = console.error;
+console.error = (...args) => {
+  errors.push(args.map((a) => (a?.stack || String(a))).join(' '));
+};
+window.addEventListener('error', (e) => errors.push(`window.error: ${e.error?.stack || e.message}`));
+window.addEventListener('unhandledrejection', (e) => errors.push(`unhandled: ${e.reason?.stack || e.reason}`));
+
+const wait = (ms = 120) => new Promise((r) => setTimeout(r, ms));
+const html = () => document.getElementById('root')?.innerHTML || '';
+const checks = [];
+const check = (name, ok) => checks.push([name, Boolean(ok)]);
+
+const clickButton = (label, exact = false) => {
+  const buttons = [...document.querySelectorAll('button, [role="button"], .nav-item, .settings-nav-item, .theme-card')];
+  const el = buttons.find((b) => {
+    const t = (b.textContent || '').trim();
+    return exact ? t === label : t.includes(label);
+  });
+  if (!el) return false;
+  el.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  return true;
+};
+
+await import(new URL('../.smoke/smoke-entry.mjs', import.meta.url));
+// Ждём завершения загрузочного сплэша (в конфиге по умолчанию showSplash=true → 950 мс)
+await wait(1350);
+
+check('e2e: booted without bootError', !html().includes('Не удалось запустить интерфейс') && !html().includes('could not be cloned'));
+check('e2e: onboarding shown on fresh start', html().includes('Локальный киберпанк-ассистент') && html().includes('Начать работу'));
+
+// Завершаем онбординг и проверяем запись onboardingDone на диск
+clickButton('Начать работу');
+await wait(250);
+const cfgAfterOnboarding = await electron.ipcRenderer.invoke('config:get');
+check('e2e: onboarding saved to disk', cfgAfterOnboarding.onboardingDone === true);
+
+// Проходим все разделы с реальным IPC
+for (const [nav, marker] of [
+  ['Обзор', 'Процессор'],
+  ['Скиллы', 'Coding'],
+  ['Медиа-студия', 'Медиа'],
+  ['Браузер', 'Браузер'],
+  ['Файлы', 'Быстрый доступ'],
+  ['Терминал', 'Терминал'],
+  ['Музыка', 'synthwave-demo'],
+  ['Память', 'Память'],
+]) {
+  clickButton(nav);
+  await wait(300);
+  check(`e2e: view ${nav}`, html().includes(marker));
+}
+
+// Проверяем музыкальную панель: кнопка «Обновить» вызывает реальный music:refreshLibrary (возвращает массив)
+clickButton('Музыка');
+await wait(200);
+clickButton('Обновить');
+await wait(250);
+check('e2e: music refresh keeps track list', html().includes('synthwave-demo'));
+
+// Переключаемся обратно в Диалоги и отправляем реальное сообщение агенту
+clickButton('Новый диалог');
+await wait(300);
+const ta = document.querySelector('.composer-input');
+if (ta) {
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
+  setter.call(ta, 'Создай заметку в рабочей папке');
+  ta.dispatchEvent(new window.Event('input', { bubbles: true }));
+  await wait(100);
+  ta.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+}
+await wait(700);
+const writtenNote = path.join(bootInfo.paths.workspace, 'e2e-note.txt');
+check('e2e: agent executed write_file tool', fs.existsSync(writtenNote) && fs.readFileSync(writtenNote, 'utf8') === 'Привет из E2E!');
+check('e2e: assistant reply rendered in chat', html().includes('Заметка успешно записана'));
+
+// Открываем настройки, проверяем переключение темы (два подряд updateConfig без потери первого!) и экспорт/импорт
+window.dispatchEvent(new window.KeyboardEvent('keydown', { key: ',', ctrlKey: true, bubbles: true }));
+await wait(250);
+check('e2e: settings modal open', html().includes('Настройки'));
+
+clickButton('Внешний вид');
+await wait(200);
+clickButton('Ghost Shell');
+await wait(250);
+const cfgAfterTheme = await electron.ipcRenderer.invoke('config:get');
+check('e2e: consecutive updateConfig preserved theme', cfgAfterTheme.appearance.theme === 'ghost' && cfgAfterTheme.appearance.customTheme === null);
+
+clickButton('Общие');
+await wait(200);
+const exportPath = path.join(userData, 'exported-config.json');
+electron.dialog.lastSavePath = exportPath;
+clickButton('Экспорт настроек');
+await wait(250);
+check('e2e: config exported via UI', fs.existsSync(exportPath) && html().includes('Настройки экспортированы'));
+
+electron.dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [exportPath] });
+clickButton('Импорт настроек');
+await wait(250);
+check('e2e: config imported via UI', html().includes('Настройки импортированы'));
+
+// Сброс до заводских настроек через UI (вкладка «О программе»)
+clickButton('О программе');
+await wait(200);
+clickButton('Сбросить всё');
+await wait(350);
+const cfgAfterReset = await electron.ipcRenderer.invoke('config:get');
+check('e2e: factory reset restored defaults and created fresh chat', cfgAfterReset.appearance.theme === 'nightcity');
+
+console.error = origErr;
+await mainApp.shutdownServices();
+try { fs.rmSync(userData, { recursive: true, force: true }); } catch {}
+
+console.log('\n=== Full-stack E2E results ===');
+for (const [name, ok] of checks) console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}`);
+if (errors.length) {
+  console.log(`\n${errors.length} console.error / rejection(s):`);
+  for (const e of errors.slice(0, 12)) console.log(' -', e.slice(0, 600));
+}
+
+const failed = checks.filter(([, ok]) => !ok).length;
+for (const [name, ok] of checks) {
+  if (!ok) console.log(`::error title=e2e: ${name}::Проверка «${name}» не прошла`);
+}
+for (const e of errors.slice(0, 10)) {
+  console.log(`::error title=e2e: console::${String(e).split('\n')[0].slice(0, 300)}`);
+}
+console.log(`::notice title=e2e::${checks.length - failed}/${checks.length} сквозных E2E-проверок прошло, ошибок консоли: ${errors.length}`);
+
+process.exit(errors.length || failed ? 1 : 0);

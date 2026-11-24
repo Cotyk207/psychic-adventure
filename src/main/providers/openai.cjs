@@ -90,6 +90,12 @@ async function request(provider, path, init, signal) {
   return res;
 }
 
+function isToolsUnsupportedError(err) {
+  const status = Number(err?.status) || 0;
+  if (status !== 400 && status !== 404 && status !== 422 && status !== 501) return false;
+  return /tool|function.?call|functions?\s+are\s+not|does\s+not\s+support/i.test(String(err?.message || ''));
+}
+
 async function* streamOpenAI({ provider, model, messages, tools, temperature, maxTokens, signal, onUsage }) {
   const body = {
     model,
@@ -103,10 +109,24 @@ async function* streamOpenAI({ provider, model, messages, tools, temperature, ma
     body.tools = openaiTools;
     body.tool_choice = 'auto';
   }
-  const res = await request(provider, '/chat/completions', {
-    method: 'POST',
-    body: JSON.stringify(body),
-  }, signal);
+  let res;
+  try {
+    res = await request(provider, '/chat/completions', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }, signal);
+  } catch (err) {
+    if (openaiTools && isToolsUnsupportedError(err)) {
+      delete body.tools;
+      delete body.tool_choice;
+      res = await request(provider, '/chat/completions', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }, signal);
+    } else {
+      throw err;
+    }
+  }
 
   const toolAcc = new Map();
   let usage = null;
@@ -153,10 +173,24 @@ async function chatOpenAINonStream({ provider, model, messages, tools, temperatu
     body.tools = openaiTools;
     body.tool_choice = 'auto';
   }
-  const res = await request(provider, '/chat/completions', {
-    method: 'POST',
-    body: JSON.stringify(body),
-  }, signal);
+  let res;
+  try {
+    res = await request(provider, '/chat/completions', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }, signal);
+  } catch (err) {
+    if (openaiTools && isToolsUnsupportedError(err)) {
+      delete body.tools;
+      delete body.tool_choice;
+      res = await request(provider, '/chat/completions', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }, signal);
+    } else {
+      throw err;
+    }
+  }
   const json = await res.json();
   const msg = json.choices?.[0]?.message || {};
   const events = [];
@@ -178,11 +212,13 @@ async function listModels(provider, signal) {
   if (!provider.baseUrl) throw new Error('Не указан Base URL');
   const res = await request(provider, '/models', { method: 'GET' }, signal);
   const json = await res.json();
-  const list = Array.isArray(json.data)
-    ? json.data
-    : Array.isArray(json.models)
-      ? json.models
-      : [];
+  const list = Array.isArray(json)
+    ? json
+    : Array.isArray(json?.data)
+      ? json.data
+      : Array.isArray(json?.models)
+        ? json.models
+        : [];
   const models = [];
   for (const item of list) {
     const id = item.id || item.name || item.model;

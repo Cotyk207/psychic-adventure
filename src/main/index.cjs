@@ -84,18 +84,30 @@ function seedWallpapers() {
 
 function registerProtocol() {
   try {
+    const { mimeOf, isInside } = require('./tools/files.cjs');
     protocol.handle('psychic', async (request) => {
       try {
         const parsed = new URL(request.url);
         if (parsed.host !== 'wallpaper') return new Response('Not found', { status: 404 });
         const name = path.basename(decodeURIComponent(parsed.pathname));
         const themesDir = paths.get().themes;
-        const file = path.join(themesDir, name);
-        if (!path.resolve(file).startsWith(path.resolve(themesDir))) {
+        let file = path.join(themesDir, name);
+        if (!isInside(file, themesDir)) {
           return new Response('Forbidden', { status: 403 });
         }
-        if (!fs.existsSync(file)) return new Response('Not found', { status: 404 });
-        return net.fetch(url.pathToFileURL(file).toString());
+        if (!fs.existsSync(file)) {
+          const fallback = paths.resourcesPath('wallpapers', name);
+          if (fallback && fs.existsSync(fallback)) file = fallback;
+          else return new Response('Not found', { status: 404 });
+        }
+        const buf = await fs.promises.readFile(file);
+        return new Response(buf, {
+          status: 200,
+          headers: {
+            'Content-Type': mimeOf(file),
+            'Cache-Control': 'public, max-age=86400',
+          },
+        });
       } catch (err) {
         return new Response(String(err), { status: 500 });
       }
@@ -138,7 +150,10 @@ function createWindow() {
   });
 
   mainWindow.webContents.on('will-navigate', (event, target) => {
-    if (target !== mainWindow.webContents.getURL()) event.preventDefault();
+    if (target !== mainWindow.webContents.getURL()) {
+      event.preventDefault();
+      if (/^https?:\/\//i.test(target)) shell.openExternal(target);
+    }
   });
 
   mainWindow.on('maximize', () => send('window:state', { maximized: true }));
@@ -270,7 +285,7 @@ function initServices() {
   scheduler.start(30000);
 
   services = {
-    mainWindow: null,
+    get mainWindow() { return getWindow(); },
     interactions,
     chats,
     skills,
@@ -282,7 +297,6 @@ function initServices() {
     computer,
     scheduler,
   };
-  services.mainWindow = mainWindow;
 
   const agent = new Agent({
     store, chats, skills, memory, interactions, services, send,
@@ -413,11 +427,11 @@ if (!gotLock) {
     });
     session.defaultSession.setPermissionCheckHandler(() => false);
 
+    initServices();
     createWindow();
     createTray();
     registerShortcuts();
     applyAutoLaunch();
-    initServices();
     detectLocalProviders();
     checkForUpdates(true);
 

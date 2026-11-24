@@ -44,7 +44,8 @@ const app = {
   isPackaged: false,
   getAppPath: () => process.cwd(),
   setAppUserModelId: () => {},
-  setLoginItemSettings: () => {},
+  setLoginItemSettings: (settings = {}) => { app.__loginSettings = { openAtLogin: !!settings.openAtLogin }; },
+  getLoginItemSettings: () => app.__loginSettings || { openAtLogin: false },
   requestSingleInstanceLock: () => true,
   on: (event, fn) => {
     if (!listeners.has(event)) listeners.set(event, []);
@@ -107,10 +108,32 @@ function chameleon(name = 'wc') {
     construct() { return chameleon(name); },
   });
 }
+const sentEvents = [];
+
+// В реальном Electron и ipcRenderer.invoke, и webContents.send прогоняют данные
+// через Structured Clone — любая функция/нативный объект внутри ответа роняет вызов
+// с «An object could not be cloned». Повторяем это поведение прямо в стабе.
+function ipcClone(value, label) {
+  if (value === undefined) return undefined;
+  try {
+    return structuredClone(value);
+  } catch (err) {
+    throw new Error(`An object could not be cloned (${label}): ${err.message}`);
+  }
+}
+
 class BrowserWindowImpl {
   constructor(options = {}) {
     this.options = options;
-    this.webContents = chameleon('window.webContents');
+    const wc = chameleon('window.webContents');
+    wc.send = (channel, payload) => {
+      const cloned = ipcClone(payload, `webContents.send(${channel})`);
+      sentEvents.push({ channel, payload: cloned });
+      for (const listener of BrowserWindowImpl.rendererListeners.get(channel) || []) {
+        listener({ sender: wc }, cloned);
+      }
+    };
+    this.webContents = wc;
   }
   loadURL() {}
   loadFile() {}
@@ -143,6 +166,7 @@ class BrowserWindowImpl {
   static getFocusedWindow() { return BrowserWindowImpl.instances[0] || null; }
 }
 BrowserWindowImpl.instances = [];
+BrowserWindowImpl.rendererListeners = new Map();
 
 const BrowserWindow = new Proxy(BrowserWindowImpl, {
   construct(target, args) {
@@ -193,6 +217,24 @@ const nativeImage = {
   createFromBuffer: () => ({ isEmpty: () => true, resize: () => ({ toDataURL: () => '' }) }),
 };
 
+const screen = {
+  getPrimaryDisplay: () => ({ size: { width: 1920, height: 1080 } }),
+};
+
+const desktopCapturer = {
+  getSources: async () => [{
+    id: 'screen:0:0',
+    name: 'Entire Screen',
+    thumbnail: {
+      isEmpty: () => false,
+      toPNG: () => Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==',
+        'base64'
+      ),
+    },
+  }],
+};
+
 const dialog = {
   lastSavePath: null,
   showOpenDialog: async () => ({ canceled: true, filePaths: [] }),
@@ -214,14 +256,45 @@ module.exports = {
   BrowserWindow,
   WebContentsView,
   nativeImage,
+  screen,
+  desktopCapturer,
   dialog,
   shell,
   clipboard: { readText: () => '', writeText: () => {}, writeBuffer: () => {} },
   ipcMain: {
     handlers: new Map(),
-    handle: (channel, fn) => module.exports.ipcMain.handlers.set(channel, fn),
+    handle: (channel, fn) => module.exports.ipcMain.handlers.set(channel, async (event, payload) => {
+      const clonedIn = ipcClone(payload, `ipcMain.handle(${channel}) request`);
+      const result = await fn(event, clonedIn);
+      return ipcClone(result, `ipcMain.handle(${channel}) response`);
+    }),
     on: () => {},
-    removeHandler: () => {},
+    removeHandler: (channel) => module.exports.ipcMain.handlers.delete(channel),
+  },
+  ipcRenderer: {
+    invoke: async (channel, payload) => {
+      const fn = module.exports.ipcMain.handlers.get(channel);
+      if (!fn) throw new Error(`No handler registered for '${channel}'`);
+      return fn({ sender: { isDestroyed: () => false } }, payload);
+    },
+    on: (channel, handler) => {
+      if (!BrowserWindowImpl.rendererListeners.has(channel)) {
+        BrowserWindowImpl.rendererListeners.set(channel, new Set());
+      }
+      BrowserWindowImpl.rendererListeners.get(channel).add(handler);
+    },
+    removeListener: (channel, handler) => {
+      BrowserWindowImpl.rendererListeners.get(channel)?.delete(handler);
+    },
+  },
+  contextBridge: {
+    exposed: {},
+    exposeInMainWorld: (key, api) => {
+      module.exports.contextBridge.exposed[key] = api;
+      if (typeof globalThis.window !== 'undefined') {
+        globalThis.window[key] = api;
+      }
+    },
   },
   session: {
     defaultSession: {
@@ -230,11 +303,16 @@ module.exports = {
       setPermissionCheckHandler: () => {},
     },
   },
-  protocol: { handle: () => {}, registerSchemesAsPrivileged: () => {} },
+  protocol: {
+    handlers: new Map(),
+    handle: (scheme, fn) => module.exports.protocol.handlers.set(scheme, fn),
+    registerSchemesAsPrivileged: () => {},
+  },
   globalShortcut: { register: () => true, unregisterAll: () => {} },
   net: { fetch: (...args) => globalThis.fetch(...args) },
   safeStorage: { isEncryptionAvailable: () => false, encryptString: (s) => s, decryptString: (s) => s },
   __dirs: dirs,
   __root: root,
   __windowCalls: windowCalls,
+  __sentEvents: sentEvents,
 };

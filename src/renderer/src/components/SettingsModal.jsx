@@ -47,7 +47,7 @@ function Field({ label, hint, children, wide }) {
 }
 
 export default function SettingsModal({ initialTab }) {
-  const { state, closeModal, updateConfig, patchConfig, refreshConfig, refreshProviders, refreshSkills, refreshMemory, refreshTasks, toast } = useApp();
+  const { state, closeModal, updateConfig, patchConfig, refreshConfig, refreshProviders, refreshSkills, refreshMemory, refreshTasks, refreshAll, createChat, toast } = useApp();
   const [tab, setTab] = useState(initialTab || 'general');
   const config = state.config || {};
   const providers = state.providers || [];
@@ -207,7 +207,8 @@ export default function SettingsModal({ initialTab }) {
                   <div className="data-actions">
                     <button className="data-action" onClick={async () => {
                       const result = await invoke('config:export').catch((err) => ({ error: err.message }));
-                      if (result?.path) toast(`Настройки экспортированы: ${result.path}`, 'success');
+                      const exportedPath = typeof result === 'string' ? result : result?.path;
+                      if (exportedPath) toast(`Настройки экспортированы: ${exportedPath}`, 'success');
                       else if (result?.error) toast(result.error, 'error');
                     }}>
                       <Icon name="download" size={17} />
@@ -216,8 +217,11 @@ export default function SettingsModal({ initialTab }) {
                     </button>
                     <button className="data-action" onClick={async () => {
                       const result = await invoke('config:import').catch((err) => ({ error: err.message }));
-                      if (result?.ok) { await refreshConfig(); toast('Настройки импортированы', 'success'); }
-                      else if (result?.error) toast(result.error, 'error');
+                      if (result && !result.error) {
+                        await refreshConfig();
+                        await refreshProviders();
+                        toast('Настройки импортированы', 'success');
+                      } else if (result?.error) toast(result.error, 'error');
                     }}>
                       <Icon name="upload" size={17} />
                       <span className="data-action-title">Импорт настроек</span>
@@ -532,7 +536,17 @@ export default function SettingsModal({ initialTab }) {
                       className="btn btn-danger"
                       onClick={async () => {
                         if (!window.confirm('Точно сбросить все данные PSYCHIC?')) return;
-                        await invoke('app:factoryReset').catch((err) => toast(err.message, 'error'));
+                        try {
+                          await invoke('app:factoryReset');
+                          await refreshConfig();
+                          await refreshAll();
+                          await refreshTasks();
+                          await createChat();
+                          close();
+                          toast('Все настройки и данные сброшены', 'info');
+                        } catch (err) {
+                          toast(err.message, 'error');
+                        }
                       }}
                     >
                       <Icon name="trash" size={13} /> Сбросить всё

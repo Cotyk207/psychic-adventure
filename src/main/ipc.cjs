@@ -62,33 +62,36 @@ function registerIpc(deps) {
     };
   });
 
-  handle('app:minimize', () => win()?.minimize());
-  handle('app:maximize', () => win()?.maximize());
-  handle('app:unmaximize', () => win()?.unmaximize());
+  handle('app:minimize', () => { win()?.minimize(); return true; });
+  handle('app:maximize', () => { win()?.maximize(); return true; });
+  handle('app:unmaximize', () => { win()?.unmaximize(); return true; });
   handle('app:toggleMaximize', () => {
     const w = win();
     if (!w) return false;
     if (w.isMaximized()) w.unmaximize(); else w.maximize();
     return w.isMaximized();
   });
-  handle('app:close', () => win()?.close());
-  handle('app:hide', () => win()?.hide());
+  handle('app:close', () => { win()?.close(); return true; });
+  handle('app:hide', () => { win()?.hide(); return true; });
   handle('app:show', () => {
     const w = win();
-    if (!w) return;
+    if (!w) return false;
     w.show();
     w.focus();
+    return true;
   });
   handle('app:setFullscreen', ({ enabled }) => {
     const w = win();
-    if (!w) return;
+    if (!w) return false;
     w.setFullScreen(!!enabled);
+    return true;
   });
-  handle('app:setAlwaysOnTop', ({ enabled }) => win()?.setAlwaysOnTop(!!enabled));
-  handle('app:quit', () => app.quit());
+  handle('app:setAlwaysOnTop', ({ enabled }) => { win()?.setAlwaysOnTop(!!enabled); return true; });
+  handle('app:quit', () => { app.quit(); return true; });
   handle('app:relaunch', () => {
     app.relaunch();
     app.quit();
+    return true;
   });
   handle('app:setAutoLaunch', ({ enabled }) => {
     app.setLoginItemSettings({ openAtLogin: !!enabled, args: ['--hidden'] });
@@ -170,6 +173,9 @@ function registerIpc(deps) {
   handle('app:factoryReset', () => {
     chats.clear();
     memory.clear();
+    if (scheduler) {
+      for (const task of scheduler.list()) scheduler.remove(task.id);
+    }
     store.reset();
     return true;
   });

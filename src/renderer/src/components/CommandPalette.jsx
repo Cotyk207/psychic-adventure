@@ -50,16 +50,18 @@ export default function CommandPalette() {
 
     for (const prompt of state.config?.chat?.prompts || []) {
       items.push({
+        id: `prompt-${prompt.id}`,
         group: 'Промпты',
         label: prompt.title || prompt.text,
         icon: 'bookmark',
         hint: prompt.text,
-        run: () => sendMessage(prompt.text),
+        run: () => { setView('chat'); sendMessage(prompt.text); },
       });
     }
 
     for (const theme of THEMES) {
       items.push({
+        id: `theme-${theme.id}`,
         group: 'Темы',
         label: theme.name,
         icon: 'palette',
@@ -70,11 +72,12 @@ export default function CommandPalette() {
 
     for (const chat of state.chats.slice(0, 40)) {
       items.push({
+        id: `chat-${chat.id}`,
         group: 'Диалоги',
         label: chat.title,
         icon: 'message-square',
         hint: `${chat.messageCount} сообщ.`,
-        run: () => loadChat(chat.id),
+        run: () => { setView('chat'); loadChat(chat.id); },
       });
     }
 
@@ -132,7 +135,7 @@ export default function CommandPalette() {
             const showGroup = item.group !== lastGroup;
             lastGroup = item.group;
             return (
-              <React.Fragment key={`${item.group}-${item.label}`}>
+              <React.Fragment key={item.id || `${item.group}-${item.label}-${index}`}>
                 {showGroup && <div className="palette-group">{item.group}</div>}
                 <div
                   className={cn('palette-item', index === active && 'active')}

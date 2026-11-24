@@ -230,6 +230,8 @@ const MAP = {
   'sticky-note': StickyNote,
   'folder-git': FolderGit2,
   lightbulb: Lightbulb,
+  'code-2': Code2,
+  'trash-2': Trash2,
 };
 
 export default function Icon({ name, size = 16, className, strokeWidth = 1.8, ...props }) {

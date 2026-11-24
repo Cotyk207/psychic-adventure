@@ -47,6 +47,10 @@ export default function MusicPanel() {
   }, [tracks, search]);
 
   const play = async (track, index) => {
+    if (current?.current?.path === track.path) {
+      player.toggle();
+      return;
+    }
     setBusyId(track.path);
     try {
       player.queue = filtered;
@@ -128,7 +132,10 @@ export default function MusicPanel() {
               className="btn btn-sm"
               onClick={() => {
                 invoke('music:refreshLibrary')
-                  .then((r) => { setTracks(r?.tracks || []); toast('Библиотека обновлена', 'success'); })
+                  .then((r) => {
+                    setTracks(Array.isArray(r) ? r : r?.tracks || []);
+                    toast('Библиотека обновлена', 'success');
+                  })
                   .catch((err) => toast(err.message, 'error'));
               }}
             >
@@ -138,7 +145,7 @@ export default function MusicPanel() {
           <div className="panel-body">
             <div className="music-list">
               {filtered.map((track, index) => {
-                const active = current?.track?.path === track.path;
+                const active = current?.current?.path === track.path;
                 return (
                   <div
                     key={track.path}
@@ -234,13 +241,17 @@ export default function MusicPanel() {
         <div className="panel-body">
           <div className="music-list">
             {stations.map((station) => {
-              const active = current?.track?.path === station.url;
+              const active = current?.current?.path === station.url;
               return (
                 <div key={station.url} className={cn('track-row', active && 'active')}>
                   <div className="track-index"><Icon name="radio" size={12} /></div>
                   <button
                     className="track-play"
                     onClick={() => {
+                      if (active) {
+                        player.toggle();
+                        return;
+                      }
                       player.queue = [station];
                       player.index = 0;
                       player.playTrack({ ...station, path: station.url }).catch((err) => toast(err.message, 'error'));
