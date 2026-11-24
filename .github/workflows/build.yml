@@ -23,7 +23,9 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # jsdom тянет undici, которому нужен zlib.createZstdDecompress —
+          # эта функция появилась в Node 22, на Node 20 импорт падает.
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
