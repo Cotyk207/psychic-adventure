@@ -751,3 +751,34 @@ test('упаковка: каждый require main-процесса покрыт 
 
   assert.deepEqual(problems, []);
 });
+
+test('terminal: close завершает уже инициализированную интерактивную оболочку', async () => {
+  const { TerminalService } = require('../src/main/services/terminal.cjs');
+  const events = [];
+  let onReady;
+  let onExit;
+  const readyPromise = new Promise((r) => { onReady = r; });
+  const exitPromise = new Promise((r) => { onExit = r; });
+
+  const svc = new TerminalService((channel, payload) => {
+    events.push({ channel, payload });
+    if (channel === 'terminal:data' && String(payload.data).includes('READY_CHECK')) onReady();
+    if (channel === 'terminal:exit') onExit(payload);
+  });
+
+  const session = svc.create({ cwd: os.tmpdir() });
+  assert.ok(session.id);
+  svc.write(session.id, 'echo READY_CHECK\n');
+  await Promise.race([
+    readyPromise,
+    new Promise((_, rej) => setTimeout(() => rej(new Error('оболочка не ответила за 5с')), 5000)),
+  ]);
+
+  svc.close(session.id);
+  const exit = await Promise.race([
+    exitPromise,
+    new Promise((_, rej) => setTimeout(() => rej(new Error('оболочка не завершилась после close()')), 3000)),
+  ]);
+  assert.equal(exit.id, session.id);
+});
+

@@ -69,8 +69,23 @@ class TerminalService {
   close(id) {
     const proc = this.terms.get(id);
     if (!proc) return;
-    try { proc.kill(); } catch {}
     this.terms.delete(id);
+    if (proc.exitCode !== null || proc.signalCode !== null) return;
+
+    // Интерактивный bash/zsh игнорируют SIGTERM: закрываем stdin (EOF) и
+    // дублируем SIGKILL по таймеру, чтобы хэндл процесса не держал event loop.
+    try {
+      proc.stdin?.write('exit\r\n');
+      proc.stdin?.end();
+    } catch {}
+    try { proc.kill(); } catch {}
+    const timer = setTimeout(() => {
+      try {
+        if (proc.exitCode === null && proc.signalCode === null) proc.kill('SIGKILL');
+      } catch {}
+    }, 500);
+    timer.unref?.();
+    proc.once('exit', () => clearTimeout(timer));
   }
 
   closeAll() {
