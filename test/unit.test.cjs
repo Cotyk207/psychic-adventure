@@ -693,3 +693,61 @@ test('providers: список моделей OpenAI-совместимого API
     globalThis.fetch = originalFetch;
   }
 });
+
+// ══ упаковка: все require main-процесса должны попадать в asar ════════════════
+//
+// electron-builder собирает приложение только из build.files. Если какой-то
+// require в src/main или src/preload ведёт за пределы этого списка (как было
+// с src/shared/providers.json), в dev всё работает, а собранный EXE падает
+// при старте с «Cannot find module». Этот тест ловит такое заранее.
+
+test('упаковка: каждый require main-процесса покрыт build.files', () => {
+  const root = path.resolve(__dirname, '..');
+  const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  const whitelist = pkg.build.files;
+
+  const covered = (rel) => whitelist.some((pattern) => {
+    if (pattern.endsWith('/**/*')) {
+      const dir = pattern.slice(0, -'/**/*'.length);
+      return rel === dir || rel.startsWith(`${dir}/`);
+    }
+    return rel === pattern;
+  });
+
+  // Node не подставляет .cjs сам — пробуем только то, что реально резолвится.
+  const resolveRequire = (fromDir, request) => {
+    const base = path.resolve(fromDir, request);
+    const candidates = [base, `${base}.js`, `${base}.json`, `${base}.node`,
+      path.join(base, 'index.js'), path.join(base, 'index.json')];
+    return candidates.find((candidate) => {
+      try { return fs.statSync(candidate).isFile(); } catch { return false; }
+    }) || null;
+  };
+
+  const problems = [];
+  for (const dir of ['src/main', 'src/preload']) {
+    const walk = (current) => {
+      for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+        const full = path.join(current, entry.name);
+        if (entry.isDirectory()) { walk(full); continue; }
+        if (!/\.(cjs|js)$/.test(entry.name)) continue;
+        const source = fs.readFileSync(full, 'utf8');
+        for (const match of source.matchAll(/require\(\s*['"](\.[^'"]+)['"]\s*\)/g)) {
+          const request = match[1];
+          const resolved = resolveRequire(path.dirname(full), request);
+          if (!resolved) {
+            problems.push(`${path.relative(root, full)}: не разрешается ${request}`);
+            continue;
+          }
+          const rel = path.relative(root, resolved).split(path.sep).join('/');
+          if (!covered(rel)) {
+            problems.push(`${path.relative(root, full)}: ${request} -> ${rel} вне build.files`);
+          }
+        }
+      }
+    };
+    walk(path.join(root, dir));
+  }
+
+  assert.deepEqual(problems, []);
+});

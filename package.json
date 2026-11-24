@@ -1,6 +1,6 @@
 {
   "name": "psychic",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "PSYCHIC — киберпанк ИИ-ассистент для Windows с полным доступом к ПК",
   "main": "src/main/index.cjs",
   "author": "PSYCHIC",
@@ -17,7 +17,7 @@
     "smoke": "node scripts/ci-smoke.mjs",
     "check": "node scripts/check-syntax.mjs",
     "assets": "python3 scripts/generate-assets.py",
-    "test": "node --test --test-force-exit test/*.test.cjs"
+    "test": "node --test test/*.test.cjs"
   },
   "dependencies": {
     "@xterm/addon-fit": "0.10.0",
@@ -50,6 +50,7 @@
       "dist/**/*",
       "src/main/**/*",
       "src/preload/**/*",
+      "src/shared/**/*",
       "resources/**/*",
       "package.json"
     ],

@@ -22,9 +22,10 @@ process.on('uncaughtException', (err) => {
   process.exitCode = 3;
 });
 
+const mainProcess = require('../src/main/index.cjs');
+
 const ready = new Promise((resolve, reject) => {
   const timer = setTimeout(() => reject(new Error('main process did not boot in 15s')), 15000);
-  require('../src/main/index.cjs');
   setTimeout(() => {
     clearTimeout(timer);
     if (ipcMain.handlers.size === 0) return reject(new Error('no IPC handlers registered'));
@@ -42,6 +43,12 @@ const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'psychic-ipc-'));
 const pngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==';
 
 test.before(async () => { await ready; });
+
+// Останавливаем фоновые сервисы (планировщик и т.д.), чтобы процесс
+// завершился сам — без --test-force-exit, который обрывал вывод раннера.
+test.after(() => {
+  try { mainProcess.shutdownServices(); } catch {}
+});
 
 // ══ Приложение ═════════════════════════════════════════════════════════════
 
