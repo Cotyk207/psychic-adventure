@@ -157,6 +157,7 @@ class MusicPlayer {
     this.audio.pause();
     this.audio.currentTime = 0;
     this.playing = false;
+    this.current = null;
     this.emit();
   }
 

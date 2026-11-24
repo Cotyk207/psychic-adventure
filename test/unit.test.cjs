@@ -782,3 +782,96 @@ test('terminal: close завершает уже инициализированн
   assert.equal(exit.id, session.id);
 });
 
+test('paths: все поля paths.get() — непустые строки и проходят structuredClone', () => {
+  const dirs = paths.get();
+  const cloned = structuredClone(dirs);
+  assert.deepEqual(cloned, dirs);
+  for (const [key, val] of Object.entries(dirs)) {
+    assert.equal(typeof val, 'string', `paths.${key} должен быть строкой, получен ${typeof val}`);
+    assert.ok(val.length > 0, `paths.${key} пустой`);
+  }
+});
+
+test('permissions: custom, autoApproveReads=false, confirmNavigation и confirmGenerate', async () => {
+  const custom = makePermissions({ 'permissions.mode': 'custom' });
+  await custom.service.check({ name: 'read_file', risk: 'read' }, { path: path.join(custom.workspace, 'ok.txt') });
+  assert.equal(custom.requests.length, 0);
+  await custom.service.check({ name: 'read_file', risk: 'read' }, { path: path.join(tempDir(), 'outside.txt') });
+  assert.equal(custom.requests.length, 1, 'чтение вне roots в режиме custom спрашивает');
+
+  const strictRead = makePermissions({ 'permissions.autoApproveReads': false });
+  await strictRead.service.check({ name: 'read_file', risk: 'read' }, { path: path.join(strictRead.workspace, 'a.txt') });
+  assert.equal(strictRead.requests.length, 1, 'autoApproveReads=false спрашивает на чтении');
+
+  const navOff = makePermissions({ 'permissions.browser.confirmNavigation': false });
+  await navOff.service.check({ name: 'browser_open', risk: 'network' }, { url: 'https://example.com' });
+  assert.equal(navOff.requests.length, 0);
+
+  const navOn = makePermissions({ 'permissions.browser.confirmNavigation': true });
+  await navOn.service.check({ name: 'browser_open', risk: 'network' }, { url: 'https://example.com' });
+  assert.equal(navOn.requests.length, 1);
+
+  const mediaOff = makePermissions({ 'permissions.media.confirmGenerate': false });
+  await mediaOff.service.check({ name: 'generate_image', risk: 'media' }, { prompt: 'neon city' });
+  assert.equal(mediaOff.requests.length, 0);
+
+  const mediaOn = makePermissions({ 'permissions.media.confirmGenerate': true });
+  await mediaOn.service.check({ name: 'generate_image', risk: 'media' }, { prompt: 'neon city' });
+  assert.equal(mediaOn.requests.length, 1);
+});
+
+test('providers: OpenAI повторяет запрос без tools, если модель не поддерживает function calling', async () => {
+  const provider = { id: 'pollinations', name: 'Pollinations', type: 'openai', baseUrl: 'https://api.test/v1', apiKey: '' };
+  const bodies = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (_url, init) => {
+    const parsed = JSON.parse(init.body);
+    bodies.push(parsed);
+    if (parsed.tools) {
+      return new Response(JSON.stringify({ error: { message: 'Model does not support tool calling' } }), { status: 400 });
+    }
+    return sseResponse(['data: {"choices":[{"delta":{"content":"Работает без tools"}}]}\n', 'data: [DONE]\n']);
+  };
+  try {
+    const events = [];
+    for await (const ev of chat(
+      provider,
+      'deepseek',
+      [{ role: 'user', content: 'привет' }],
+      { stream: true, tools: [{ name: 'read_file', description: 'read', parameters: { type: 'object' } }] }
+    )) {
+      events.push(ev);
+    }
+    assert.equal(bodies.length, 2);
+    assert.ok(Array.isArray(bodies[0].tools));
+    assert.equal(bodies[1].tools, undefined);
+    assert.equal(events.filter((e) => e.type === 'text').map((e) => e.text).join(''), 'Работает без tools');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('providers: listModels понимает массив верхнего уровня', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify([{ name: 'openai' }, { id: 'mistral' }]), { status: 200 });
+  try {
+    const list = await providers.listModels({ id: 'p', name: 'P', type: 'openai', baseUrl: 'https://api.test', apiKey: '' });
+    assert.deepEqual(list.sort(), ['mistral', 'openai']);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('упаковка: main, preload, иконки и extraResources существуют на диске', () => {
+  const root = path.resolve(__dirname, '..');
+  const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  assert.equal(fs.existsSync(path.join(root, pkg.main)), true, `нет main: ${pkg.main}`);
+  assert.equal(fs.existsSync(path.join(root, 'src/preload/preload.cjs')), true, 'нет preload.cjs');
+  assert.equal(fs.existsSync(path.join(root, pkg.build.win.icon)), true, `нет win.icon: ${pkg.build.win.icon}`);
+  assert.equal(fs.existsSync(path.join(root, 'resources/icon.png')), true, 'нет resources/icon.png');
+  for (const extra of pkg.build.extraResources || []) {
+    assert.equal(fs.existsSync(path.join(root, extra.from)), true, `нет extraResources: ${extra.from}`);
+  }
+});
+
+

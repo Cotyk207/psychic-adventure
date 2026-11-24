@@ -16,8 +16,10 @@ export default function TerminalPanel() {
   const buffers = useRef(new Map());
   const activeRef = useRef(null);
   const createRef = useRef(null);
+  const sessionsRef = useRef([]);
 
   useEffect(() => { activeRef.current = activeId; }, [activeId]);
+  useEffect(() => { sessionsRef.current = sessions; }, [sessions]);
 
   const createSession = async (cwd) => {
     try {
@@ -117,6 +119,9 @@ export default function TerminalPanel() {
       ro.disconnect();
       u1?.();
       u2?.();
+      for (const s of sessionsRef.current) {
+        invoke('terminal:close', { id: s.id }).catch(() => {});
+      }
       try { term.dispose(); } catch {}
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

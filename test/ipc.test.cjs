@@ -57,7 +57,20 @@ test('app:getInfo отдаёт версию и пути', async () => {
   assert.equal(info.version, APP_VERSION);
   assert.equal(info.name, 'PSYCHIC');
   assert.ok(info.paths.userData);
+  for (const [key, val] of Object.entries(info.paths)) {
+    assert.equal(typeof val, 'string', `app:getInfo paths.${key} не строка`);
+    assert.ok(val.length > 0, `app:getInfo paths.${key} пустой`);
+  }
   assert.equal(typeof info.uptime, 'number');
+});
+
+test('ipc: стаб отклоняет неклонируемые ответы так же, как реальный Electron', async () => {
+  electron.ipcMain.handle('test:uncloneable', () => ({ bad: () => {} }));
+  try {
+    await assert.rejects(() => call('test:uncloneable'), /could not be cloned/i);
+  } finally {
+    electron.ipcMain.removeHandler('test:uncloneable');
+  }
 });
 
 test('app: окно и его состояние', async () => {
@@ -541,3 +554,123 @@ test('каждый канал, который вызывает интерфей�
   const missing = [...used].filter((c) => !ipcMain.handlers.has(c));
   assert.deepEqual(missing, [], `каналы без обработчика: ${missing.join(', ')}`);
 });
+
+test('app/fs/music/browser: все вспомогательные каналы и протокол psychic://', async () => {
+  const login = await call('app:setAutoLaunch', { enabled: true });
+  assert.equal(login.openAtLogin, true);
+  assert.equal(await call('app:openPath', { path: tmp() }), true);
+  assert.equal(await call('app:showItemInFolder', { path: tmp() }), true);
+  assert.equal(await call('app:openDevTools'), true);
+  assert.equal(await call('app:quit'), true);
+  assert.equal(await call('app:relaunch'), true);
+  assert.equal(await call('config:openFolder'), true);
+  assert.equal(await call('fs:openFile', { path: tmp() }), true);
+
+  electron.dialog.showOpenDialog = async () => ({ canceled: false, filePaths: ['/tmp/a.txt', '/tmp/b.txt'] });
+  assert.deepEqual(await call('fs:pickFile', { multi: true }), ['/tmp/a.txt', '/tmp/b.txt']);
+  assert.equal(await call('fs:pickFolder'), '/tmp/a.txt');
+  electron.dialog.lastSavePath = '/tmp/out.txt';
+  assert.equal(await call('fs:pickSave', { defaultPath: '/tmp/out.txt' }), '/tmp/out.txt');
+  electron.dialog.showOpenDialog = async () => ({ canceled: true, filePaths: [] });
+
+  const refreshed = await call('music:refreshLibrary');
+  assert.equal(Array.isArray(refreshed), true);
+
+  await call('browser:open', { url: 'https://example.com' });
+  const readPage = await call('browser:read');
+  assert.ok(typeof readPage.text === 'string');
+
+  const proto = electron.protocol.handlers.get('psychic');
+  assert.equal(typeof proto, 'function', 'протокол psychic:// зарегистрирован');
+  const wpRes = await proto({ url: 'psychic://wallpaper/nightcity.jpg' });
+  assert.equal(wpRes.status, 200);
+  assert.equal(wpRes.headers.get('content-type'), 'image/jpeg');
+  assert.ok((await wpRes.arrayBuffer()).byteLength > 1000);
+
+  const missingRes = await proto({ url: 'psychic://wallpaper/does-not-exist.jpg' });
+  assert.equal(missingRes.status, 404);
+});
+
+test('agent: полный цикл стриминга с вызовом инструмента, скриншотом и regenerate', async () => {
+  const dir = (await call('app:getInfo')).paths.workspace;
+  const targetFile = path.join(dir, 'agent-e2e.txt');
+  try { fs.rmSync(targetFile, { force: true }); } catch {}
+
+  const provider = await call('providers:save', {
+    provider: { id: 'mock-llm', name: 'Mock LLM', type: 'openai', baseUrl: 'https://mock.llm/v1', apiKey: 'k', models: ['gpt-4o'], enabled: true },
+  });
+  const chat = await call('chats:create', { title: 'Агент E2E', provider: provider.id, model: 'gpt-4o' });
+
+  let turn = 0;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    if (String(url).endsWith('/models')) {
+      return new Response(JSON.stringify({ data: [{ id: 'gpt-4o' }] }), { status: 200 });
+    }
+    turn += 1;
+    const chunks = turn === 1
+      ? [
+          `data: ${JSON.stringify({ choices: [{ delta: { tool_calls: [{ index: 0, id: 'c1', function: { name: 'write_file', arguments: JSON.stringify({ path: targetFile, content: 'создано агентом' }) } }] } }] })}\n\n`,
+          'data: [DONE]\n\n',
+        ]
+      : turn === 2
+        ? [
+            `data: ${JSON.stringify({ choices: [{ delta: { tool_calls: [{ index: 0, id: 'c2', function: { name: 'screenshot', arguments: '{}' } }] } }] })}\n\n`,
+            'data: [DONE]\n\n',
+          ]
+        : [
+            'data: {"choices":[{"delta":{"content":"Файл записан и скриншот снят."}}]}\n\n',
+            'data: [DONE]\n\n',
+          ];
+    const enc = new TextEncoder();
+    return new Response(new ReadableStream({
+      start(c) { for (const ch of chunks) c.enqueue(enc.encode(ch)); c.close(); },
+    }), { status: 200 });
+  };
+
+  const permRequests = [];
+  const onPerm = (_ev, payload) => {
+    permRequests.push(payload.tool?.name);
+    call('interactions:resolve', { id: payload.id, value: { decision: 'once' } });
+  };
+  electron.ipcRenderer.on('permission:request', onPerm);
+
+  try {
+    const testConn = await call('providers:test', { provider });
+    assert.equal(testConn.ok, true);
+    assert.equal(testConn.count, 1);
+
+    const res = await call('agent:send', { chatId: chat.id, text: 'Запиши файл и сделай скриншот' });
+    assert.equal(res.ok, true);
+    assert.equal(fs.readFileSync(targetFile, 'utf8'), 'создано агентом');
+    assert.deepEqual(permRequests, ['screenshot'], 'write_file внутри workspace без запроса, screenshot — с подтверждением');
+
+    const savedChat = await call('chats:get', { id: chat.id });
+    const assistant = savedChat.messages.find((m) => m.role === 'assistant');
+    assert.match(assistant.content, /Файл записан/);
+    assert.equal(assistant.toolCalls.length, 2);
+
+    const regen = await call('agent:regenerate', { chatId: chat.id });
+    assert.equal(regen.ok, true);
+  } finally {
+    electron.ipcRenderer.removeListener('permission:request', onPerm);
+    globalThis.fetch = originalFetch;
+    try { fs.rmSync(targetFile, { force: true }); } catch {}
+    await call('chats:delete', { id: chat.id });
+    await call('providers:delete', { id: provider.id });
+  }
+});
+
+test('app:factoryReset сбрасывает чаты, память, задачи и настройки', async () => {
+  await call('chats:create', { title: 'Временный' });
+  await call('memory:add', { content: 'Временный факт' });
+  await call('tasks:add', { task: { title: 'Временная задача', every: 3600000 } });
+  await call('config:set', { key: 'chat.temperature', value: 0.12 });
+
+  assert.equal(await call('app:factoryReset'), true);
+  assert.equal((await call('chats:list')).length, 0);
+  assert.equal((await call('memory:list')).length, 0);
+  assert.equal((await call('tasks:list')).length, 0);
+  assert.equal(await call('config:getKey', { key: 'chat.temperature' }), 0.7);
+});
+

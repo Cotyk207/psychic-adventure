@@ -115,7 +115,15 @@ class PermissionService {
 
     if (this.sessionAllowed.has(tool.name) && tool.risk !== 'exec') return;
 
-    if (tool.risk === 'read') return;
+    if (tool.risk === 'read') {
+      if (this.store.get('permissions.autoApproveReads') === false) {
+        return this.confirm(tool, args);
+      }
+      if (mode === 'custom' && targetPath && !this.isInsideRoots(targetPath)) {
+        return this.confirm(tool, args);
+      }
+      return;
+    }
 
     if (mode === 'full') return;
 
@@ -123,13 +131,18 @@ class PermissionService {
       throw new PermissionError('Включён режим «Только чтение». Разрешены только операции чтения.');
     }
 
-    if (mode === 'workspace') {
+    if (mode === 'workspace' || mode === 'custom') {
       if (tool.risk === 'write' && targetPath && this.isInsideRoots(targetPath)) return;
-      if (tool.name === 'run_command') {
-        const allowlist = this.store.get('permissions.shell.allowlist') || [];
-        if (allowlist.some((p) => commandMatches(args.command, p))) return;
+      if (mode === 'workspace') {
+        if (tool.name === 'save_memory') return;
+        if (tool.name === 'run_command') {
+          const allowlist = this.store.get('permissions.shell.allowlist') || [];
+          if (allowlist.some((p) => commandMatches(args.command, p))) return;
+        }
+        if (tool.risk === 'network' && ['web_search', 'fetch_url', 'browser_read'].includes(tool.name)) return;
+        if (tool.name === 'browser_open' && !this.store.get('permissions.browser.confirmNavigation')) return;
+        if (tool.risk === 'media' && !this.store.get('permissions.media.confirmGenerate')) return;
       }
-      if (tool.risk === 'network' && ['web_search', 'fetch_url', 'browser_open', 'browser_read'].includes(tool.name)) return;
     }
 
     return this.confirm(tool, args);

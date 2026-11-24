@@ -196,7 +196,7 @@ export default function Dashboard() {
               icon="cpu"
               label="Процессор"
               value={stats ? `${cpu?.percent ?? 0}%` : '—'}
-              sub={cpu ? `${cpu.cores} ядер · ${cpu.speed ? `${cpu.speed} ГГц` : cpu.model?.slice(0, 28)}` : 'измеряю…'}
+              sub={cpu ? `${cpu.cores} ядер · ${cpu.speed ? `${cpu.speed >= 100 ? (cpu.speed / 1000).toFixed(2) : cpu.speed} ГГц` : cpu.model?.slice(0, 28)}` : 'измеряю…'}
             >
               {history.length > 1 && (
                 <div className="dash-spark">
@@ -273,7 +273,7 @@ export default function Dashboard() {
             </div>
             <div className="dash-starters">
               {STARTERS.map((text) => (
-                <button key={text} className="dash-starter" onClick={() => sendMessage(text)}>
+                <button key={text} className="dash-starter" onClick={() => { setView('chat'); sendMessage(text); }}>
                   <Icon name="corner-down-left" size={11} />
                   {text}
                 </button>

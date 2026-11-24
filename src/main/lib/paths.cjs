@@ -36,7 +36,7 @@ function init() {
     themes: path.join(userData, 'themes'),
     logs: path.join(userData, 'logs'),
     cache: path.join(userData, 'cache'),
-    home,
+    home: home(),
     downloads: path.join(home(), 'Downloads'),
     desktop: path.join(home(), 'Desktop'),
     documents: path.join(home(), 'Documents'),

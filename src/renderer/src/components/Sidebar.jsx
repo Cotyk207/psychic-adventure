@@ -105,7 +105,7 @@ export default function Sidebar() {
               <div
                 key={chat.id}
                 className={cn('chat-item', state.activeChatId === chat.id && 'active')}
-                onClick={() => loadChat(chat.id)}
+                onClick={() => { setView('chat'); loadChat(chat.id); }}
               >
                 <div className="chat-item-main">
                   {editingId === chat.id ? (

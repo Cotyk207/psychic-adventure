@@ -373,6 +373,7 @@ export function AppProvider({ children }) {
 
   const updateConfig = useCallback(async (key, value) => {
     const config = setDeep(stateRef.current.config || {}, key, value);
+    stateRef.current = { ...stateRef.current, config };
     dispatch({ type: 'SET_CONFIG', config });
     try {
       await invoke('config:set', { key, value });
@@ -382,6 +383,8 @@ export function AppProvider({ children }) {
   }, [toast]);
 
   const patchConfig = useCallback(async (partial) => {
+    const config = { ...(stateRef.current.config || {}), ...partial };
+    stateRef.current = { ...stateRef.current, config };
     dispatch({ type: 'PATCH_CONFIG', payload: partial });
     try {
       await invoke('config:patch', { value: partial });
