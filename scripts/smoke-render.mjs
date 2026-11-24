@@ -364,4 +364,14 @@ if (errors.length) {
   for (const e of errors.slice(0, 12)) console.log(' -', e.slice(0, 600));
 }
 const failed = checks.filter(([, ok]) => !ok).length;
+
+// GitHub Actions annotations: так провалы видно прямо в PR, не скачивая логи.
+for (const [name, ok] of checks) {
+  if (!ok) console.log(`::error title=smoke: ${name}::Проверка «${name}» не прошла`);
+}
+for (const e of errors.slice(0, 10)) {
+  console.log(`::error title=smoke: console::${String(e).split('\n')[0].slice(0, 300)}`);
+}
+console.log(`::notice title=smoke::${checks.length - failed}/${checks.length} проверок прошло, ошибок консоли: ${errors.length}`);
+
 process.exit(errors.length || failed ? 1 : 0);
