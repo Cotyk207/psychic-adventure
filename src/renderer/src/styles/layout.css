@@ -1,0 +1,729 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   Каркас приложения: фон, тайтлбар, сайдбар, основная область, статусбар
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.app {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-rows: var(--titlebar-h) 1fr var(--statusbar-h);
+  background: var(--bg0);
+}
+
+/* ── Фоновые слои ─────────────────────────────────────────────────────── */
+.bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.bg-wallpaper {
+  position: absolute;
+  inset: -60px;
+  background-image: var(--wallpaper);
+  background-size: cover;
+  background-position: center;
+  opacity: var(--wallpaper-opacity);
+  filter: blur(3px) saturate(1.15) brightness(0.85);
+  transform: scale(1.04);
+  animation: wallpaper-drift 90s ease-in-out infinite alternate;
+}
+
+@keyframes wallpaper-drift {
+  from { transform: scale(1.04) translate3d(0, 0, 0); }
+  to { transform: scale(1.09) translate3d(-12px, -8px, 0); }
+}
+
+.bg-tint {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 18% 8%, color-mix(in srgb, var(--accent-3) 20%, transparent), transparent 46%),
+    radial-gradient(ellipse at 88% 92%, color-mix(in srgb, var(--accent-2) 14%, transparent), transparent 52%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg0) 42%, transparent) 0%, var(--bg0) 92%);
+}
+
+.bg-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 46px 46px;
+  opacity: var(--grid-on);
+  animation: grid-pan 80s linear infinite;
+  mask-image: radial-gradient(ellipse at 50% 38%, #000 12%, transparent 72%);
+  -webkit-mask-image: radial-gradient(ellipse at 50% 38%, #000 12%, transparent 72%);
+}
+
+.bg-scan {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0) 0px,
+    rgba(0, 0, 0, 0) 2px,
+    rgba(0, 0, 0, 0.42) 2px,
+    rgba(0, 0, 0, 0.42) 3px
+  );
+  opacity: var(--scan-on);
+}
+
+.bg-beam {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 140px;
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--accent) 5%, transparent), transparent);
+  animation: scan-move 14s linear infinite;
+  opacity: calc(var(--fx-on) * 0.9);
+}
+
+.bg-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 45%, transparent 34%, rgba(0, 0, 0, 0.72) 100%);
+}
+
+.bg-particles {
+  position: absolute;
+  inset: 0;
+  opacity: var(--particles-on);
+}
+
+/* ── Тайтлбар ─────────────────────────────────────────────────────────── */
+.titlebar {
+  position: relative;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 16px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--bg1) 90%, transparent),
+    color-mix(in srgb, var(--bg0) 65%, transparent)
+  );
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-app-region: drag;
+}
+
+.titlebar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  -webkit-app-region: drag;
+}
+
+.brand-mark {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.brand-mark svg {
+  width: 26px;
+  height: 26px;
+  filter: drop-shadow(0 0 8px var(--glow));
+}
+
+.brand-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  background: linear-gradient(92deg, var(--text) 10%, var(--accent) 55%, var(--accent-2) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  white-space: nowrap;
+}
+
+.brand-version {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-faint);
+  letter-spacing: 0.1em;
+  border: 1px solid var(--border);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.titlebar-center {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  -webkit-app-region: no-drag;
+}
+
+.titlebar-right {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  -webkit-app-region: no-drag;
+}
+
+.window-controls {
+  display: flex;
+  height: 100%;
+}
+
+.win-btn {
+  width: 46px;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--text-dim);
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+.win-btn:hover {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--text);
+}
+
+.win-btn.close:hover {
+  background: #e81123;
+  color: #fff;
+}
+
+/* ── Тело ─────────────────────────────────────────────────────────────── */
+.app-body {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  min-height: 0;
+}
+
+/* ── Сайдбар ──────────────────────────────────────────────────────────── */
+.sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface) 86%, transparent),
+    color-mix(in srgb, var(--bg0) 55%, transparent)
+  );
+  border-right: 1px solid var(--border);
+  backdrop-filter: blur(22px) saturate(1.15);
+  position: relative;
+  z-index: 25;
+  transition: width 0.25s ease, transform 0.25s ease;
+}
+
+.sidebar::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: -1px;
+  width: 1px;
+  height: 100%;
+  background: linear-gradient(180deg, transparent, var(--accent), transparent);
+  opacity: 0.35;
+}
+
+.sidebar.collapsed {
+  width: 64px;
+}
+.sidebar.collapsed .nav-label,
+.sidebar.collapsed .brand-text,
+.sidebar.collapsed .chats,
+.sidebar.collapsed .sidebar-foot .status-text,
+.sidebar.collapsed .sidebar-foot .user-name,
+.sidebar.collapsed .chat-item-title,
+.sidebar.collapsed .sidebar-section-title {
+  display: none;
+}
+
+.sidebar-head {
+  padding: 14px 14px 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sidebar-logo {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 22%, transparent), color-mix(in srgb, var(--accent-3) 18%, transparent));
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  box-shadow: 0 0 22px -8px var(--glow);
+}
+
+.sidebar-logo svg {
+  width: 20px;
+  height: 20px;
+  color: var(--accent);
+}
+
+.sidebar-title {
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.sidebar-subtitle {
+  font-size: 9.5px;
+  color: var(--text-faint);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.new-chat-btn {
+  margin: 4px 12px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, transparent), color-mix(in srgb, var(--accent-3) 10%, transparent));
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  transition: all 0.18s ease;
+  box-shadow: 0 0 20px -12px var(--glow);
+}
+.new-chat-btn:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 26px -8px var(--glow);
+  transform: translateY(-1px);
+}
+.new-chat-btn:active {
+  transform: translateY(0);
+}
+
+.sidebar.collapsed .new-chat-btn {
+  margin: 4px 12px 8px;
+  padding: 9px;
+}
+.sidebar.collapsed .new-chat-btn span {
+  display: none;
+}
+
+.nav {
+  padding: 2px 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 11px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+  user-select: none;
+}
+.nav-item:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-2) 62%, transparent);
+}
+.nav-item.active {
+  color: var(--text);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 15%, transparent), transparent 80%);
+  border-color: color-mix(in srgb, var(--accent) 26%, transparent);
+  box-shadow: inset 0 0 24px -18px var(--glow), 0 0 18px -12px var(--glow);
+}
+.nav-item.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent);
+}
+.nav-icon {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+.nav-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nav-badge {
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--accent-2) 24%, transparent);
+  color: var(--accent-2);
+  border: 1px solid color-mix(in srgb, var(--accent-2) 35%, transparent);
+  font-family: var(--font-mono);
+}
+.nav-item.active .nav-icon {
+  color: var(--accent);
+  filter: drop-shadow(0 0 6px var(--glow));
+}
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 9px;
+}
+
+.sidebar-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px 4px;
+}
+.sidebar-section-title {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--text-faint);
+  font-weight: 600;
+}
+.sidebar-section-action {
+  background: transparent;
+  border: 0;
+  color: var(--text-faint);
+  display: grid;
+  place-items: center;
+  padding: 2px;
+  border-radius: 4px;
+}
+.sidebar-section-action:hover {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.chats {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2px 8px 8px;
+  min-height: 60px;
+}
+
+.chat-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text-dim);
+  transition: background 0.15s ease, color 0.15s ease;
+  margin-bottom: 1px;
+}
+.chat-item:hover {
+  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+  color: var(--text);
+}
+.chat-item.active {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 14%, transparent), transparent);
+  color: var(--text);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.chat-item-main {
+  min-width: 0;
+  flex: 1;
+}
+.chat-item-title {
+  font-size: 12.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.35;
+}
+.chat-item-meta {
+  font-size: 10px;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  margin-top: 2px;
+}
+.chat-item-actions {
+  display: none;
+  gap: 2px;
+}
+.chat-item:hover .chat-item-actions {
+  display: flex;
+}
+.chat-item-btn {
+  background: transparent;
+  border: 0;
+  color: var(--text-faint);
+  padding: 3px;
+  border-radius: 4px;
+  display: grid;
+  place-items: center;
+}
+.chat-item-btn:hover {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.chat-pin {
+  color: var(--accent-2);
+  font-size: 10px;
+}
+
+.sidebar-foot {
+  border-top: 1px solid var(--border);
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg0) 40%, transparent);
+}
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 9px var(--success);
+  animation: pulse 2.6s ease-in-out infinite;
+}
+.status-dot.warn {
+  background: var(--warning);
+  box-shadow: 0 0 9px var(--warning);
+}
+.status-dot.err {
+  background: var(--danger);
+  box-shadow: 0 0 9px var(--danger);
+}
+.sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+.avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--accent-2), var(--accent-3));
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+  box-shadow: 0 0 14px -4px var(--glow-2);
+}
+.user-name {
+  font-size: 11.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.user-role {
+  font-size: 9px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+/* ── Основная область ─────────────────────────────────────────────────── */
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: color-mix(in srgb, var(--bg0) 22%, transparent);
+}
+
+.main-head {
+  height: 54px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg0) 32%, transparent);
+  backdrop-filter: blur(12px);
+  z-index: 10;
+}
+
+.main-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 40vw;
+}
+
+.main-head-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.model-pill {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 9px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  color: var(--text-dim);
+  font-size: 11.5px;
+  font-family: var(--font-mono);
+  max-width: 260px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+.model-pill:hover {
+  border-color: var(--accent);
+  color: var(--text);
+  box-shadow: 0 0 16px -10px var(--glow);
+}
+.model-pill .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+  flex-shrink: 0;
+}
+.model-pill span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.icon-btn {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-dim);
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+.icon-btn:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 28%, transparent);
+  color: var(--text);
+}
+.icon-btn.active {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.icon-btn.sm {
+  width: 24px;
+  height: 24px;
+}
+.icon-btn.danger:hover {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  border-color: color-mix(in srgb, var(--danger) 30%, transparent);
+}
+
+/* ── Статусбар ────────────────────────────────────────────────────────── */
+.statusbar {
+  position: relative;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 14px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg0) 82%, transparent);
+  backdrop-filter: blur(14px);
+}
+.statusbar-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.statusbar-sep {
+  width: 1px;
+  height: 12px;
+  background: var(--border);
+}
+.statusbar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* ── Адаптив ──────────────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  :root {
+    --sidebar-w: 232px;
+  }
+  .brand-version {
+    display: none;
+  }
+}
+
+@media (max-width: 860px) {
+  .sidebar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    transform: translateX(-100%);
+  }
+  .sidebar.mobile-open {
+    transform: translateX(0);
+    box-shadow: 30px 0 80px -20px #000;
+  }
+}
