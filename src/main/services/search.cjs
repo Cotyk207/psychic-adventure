@@ -1,6 +1,6 @@
 'use strict';
 
-const { truncate, decodeEntities, escapeHtml } = require('../lib/util');
+const { truncate, decodeEntities, escapeHtml } = require('../lib/util.cjs');
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 PSYCHIC/1.0';
 

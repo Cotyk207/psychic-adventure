@@ -90,6 +90,7 @@ class BrowserService {
   setBounds(bounds) {
     this.bounds = { ...this.bounds, ...bounds };
     this.applyBounds();
+    return true;
   }
 
   show() {
@@ -97,6 +98,7 @@ class BrowserService {
     this.attach();
     this.applyBounds();
     this.push({ visible: true });
+    return true;
   }
 
   hide() {
@@ -104,6 +106,7 @@ class BrowserService {
       try { this.view.setBounds({ x: 0, y: 0, width: 0, height: 0 }); } catch {}
     }
     this.push({ visible: false });
+    return true;
   }
 
   async navigate(url) {

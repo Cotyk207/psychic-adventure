@@ -1,8 +1,8 @@
 'use strict';
 
-const { normalizeBaseUrl, safeJson, uid } = require('../lib/util');
-const { sseJson, httpError } = require('./sse');
-const { buildHeaders } = require('./openai');
+const { normalizeBaseUrl, safeJson, uid } = require('../lib/util.cjs');
+const { sseJson, httpError } = require('./sse.cjs');
+const { buildHeaders } = require('./openai.cjs');
 
 function toGoogleSchema(schema) {
   if (!schema || typeof schema !== 'object') return { type: 'OBJECT', properties: {} };

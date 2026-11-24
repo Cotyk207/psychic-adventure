@@ -28,7 +28,7 @@ import {
   FileType, FileImage, FileVideo, FileAudio, FolderTree, FolderClosed,
   FolderPlus as FolderPlusIcon, Home as HomeIcon, Building2, User, UserCircle,
   Users, ShieldCheck, ShieldAlert, ShieldOff, BadgeCheck, Sparkle, Stars,
-  ListTree, StickyNote, FolderGit2,
+  ListTree, StickyNote, FolderGit2, Lightbulb,
 } from 'lucide-react';
 
 const MAP = {
@@ -229,6 +229,7 @@ const MAP = {
   'list-tree': ListTree,
   'sticky-note': StickyNote,
   'folder-git': FolderGit2,
+  lightbulb: Lightbulb,
 };
 
 export default function Icon({ name, size = 16, className, strokeWidth = 1.8, ...props }) {

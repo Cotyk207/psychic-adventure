@@ -4,8 +4,8 @@ const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 const { shell, clipboard, desktopCapturer, screen } = require('electron');
-const { get } = require('../lib/paths');
-const { truncate } = require('../lib/util');
+const { get } = require('../lib/paths.cjs');
+const { truncate } = require('../lib/util.cjs');
 
 function findShortcut(query) {
   if (process.platform !== 'win32') return null;

@@ -5,6 +5,7 @@ import { cn } from '../lib/utils';
 import Icon from './Icon';
 
 const VIEWS = [
+  { id: 'dashboard', label: 'Обзор', icon: 'zap' },
   { id: 'chat', label: 'Диалоги', icon: 'message-square' },
   { id: 'skills', label: 'Скиллы', icon: 'sparkles' },
   { id: 'media', label: 'Медиа-студия', icon: 'image' },
@@ -16,7 +17,7 @@ const VIEWS = [
 ];
 
 export default function CommandPalette() {
-  const { state, dispatch, setView, createChat, openSettings, updateConfig, loadChat } = useApp();
+  const { state, dispatch, setView, createChat, openSettings, updateConfig, loadChat, sendMessage } = useApp();
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
   const inputRef = useRef(null);
@@ -36,6 +37,24 @@ export default function CommandPalette() {
         label: view.label,
         icon: view.icon,
         run: () => setView(view.id),
+      });
+    }
+
+    items.push({
+      group: 'Действия',
+      label: 'Горячие клавиши',
+      icon: 'keyboard',
+      shortcut: '?',
+      run: () => dispatch({ type: 'SET_MODAL', modal: 'shortcuts' }),
+    });
+
+    for (const prompt of state.config?.chat?.prompts || []) {
+      items.push({
+        group: 'Промпты',
+        label: prompt.title || prompt.text,
+        icon: 'bookmark',
+        hint: prompt.text,
+        run: () => sendMessage(prompt.text),
       });
     }
 
@@ -61,7 +80,7 @@ export default function CommandPalette() {
 
     if (!q) return items;
     return items.filter((item) => `${item.label} ${item.group}`.toLowerCase().includes(q));
-  }, [query, state.chats, createChat, openSettings, setView, updateConfig, loadChat, dispatch]);
+  }, [query, state.chats, state.config?.chat?.prompts, createChat, openSettings, setView, updateConfig, loadChat, dispatch, sendMessage]);
 
   useEffect(() => {
     setActive(0);

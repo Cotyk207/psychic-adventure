@@ -1,9 +1,9 @@
 'use strict';
 
-const { normalizeBaseUrl, withTimeout } = require('../lib/util');
-const openai = require('./openai');
-const anthropic = require('./anthropic');
-const google = require('./google');
+const { normalizeBaseUrl, withTimeout } = require('../lib/util.cjs');
+const openai = require('./openai.cjs');
+const anthropic = require('./anthropic.cjs');
+const google = require('./google.cjs');
 
 const VISION_PATTERNS = [
   /gpt-4o/i, /gpt-4\.1/i, /gpt-4-turbo/i, /gpt-4-vision/i, /o4/i,

@@ -2,8 +2,8 @@
 
 const fs = require('fs');
 const path = require('path');
-const { get } = require('../lib/paths');
-const { uid, sleep, truncate, formatBytes } = require('../lib/util');
+const { get } = require('../lib/paths.cjs');
+const { uid, sleep, truncate, formatBytes } = require('../lib/util.cjs');
 
 const STYLE_PRESETS = {
   auto: '',

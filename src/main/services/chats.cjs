@@ -2,7 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { uid, truncate } = require('../lib/util');
+const { uid, truncate } = require('../lib/util.cjs');
 
 function fileFor(dir, id) {
   return path.join(dir, `${id}.json`);

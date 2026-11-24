@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../lib/store';
+import { cn } from '../lib/utils';
 import Icon from './Icon';
 
 const SUGGESTIONS = [
@@ -42,7 +43,10 @@ const SUGGESTIONS = [
 ];
 
 export default function Welcome() {
-  const { state, sendMessage } = useApp();
+  const { state, sendMessage, savePrompt, deletePrompt, toast } = useApp();
+  const [showPrompts, setShowPrompts] = useState(false);
+  const [newPrompt, setNewPrompt] = useState('');
+  const prompts = state.config?.chat?.prompts || [];
   const provider = (state.providers || []).find((p) => p.id === state.config?.chat?.defaultProvider);
   const model = state.config?.chat?.defaultModel;
   const enabledSkills = state.skills.filter((s) => s.enabled).length;
@@ -78,6 +82,61 @@ export default function Welcome() {
           <Icon name="shield" size={12} />
           <b>{state.config?.permissions?.mode || 'workspace'}</b>
         </div>
+      </div>
+
+      <div className="welcome-prompts">
+        <button className="welcome-prompts-toggle" onClick={() => setShowPrompts((v) => !v)}>
+          <Icon name={showPrompts ? 'chevron-down' : 'bookmark'} size={13} />
+          Мои промпты
+          <span className="badge">{prompts.length}</span>
+        </button>
+        {showPrompts && (
+          <div className="welcome-prompts-body">
+            {prompts.map((prompt) => (
+              <div key={prompt.id} className="prompt-row">
+                <button className="prompt-use" onClick={() => sendMessage(prompt.text)} title={prompt.text}>
+                  <Icon name="corner-down-left" size={11} />
+                  <span className="truncate">{prompt.title}</span>
+                </button>
+                <button
+                  className="icon-btn sm danger"
+                  onClick={() => deletePrompt(prompt.id)}
+                  title="Удалить промпт"
+                >
+                  <Icon name="trash" size={11} />
+                </button>
+              </div>
+            ))}
+            <div className="prompt-add">
+              <input
+                className="input sm"
+                placeholder="Свой промпт: «Перепиши текст короче и по делу»"
+                value={newPrompt}
+                onChange={(e) => setNewPrompt(e.target.value)}
+                onKeyDown={async (e) => {
+                  if (e.key !== 'Enter') return;
+                  const text = newPrompt.trim();
+                  if (!text) return;
+                  await savePrompt(text.slice(0, 40), text);
+                  setNewPrompt('');
+                  toast('Промпт сохранён', 'success');
+                }}
+              />
+              <button
+                className="btn btn-sm"
+                onClick={async () => {
+                  const text = newPrompt.trim();
+                  if (!text) return;
+                  await savePrompt(text.slice(0, 40), text);
+                  setNewPrompt('');
+                  toast('Промпт сохранён', 'success');
+                }}
+              >
+                <Icon name="plus" size={12} /> Сохранить
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="suggestions">

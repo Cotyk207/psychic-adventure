@@ -2,7 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { get } = require('./paths');
+const { get } = require('./paths.cjs');
 
 let logFile = null;
 let stream = null;

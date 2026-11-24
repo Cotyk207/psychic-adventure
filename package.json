@@ -1,6 +1,6 @@
 {
   "name": "psychic",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "PSYCHIC — киберпанк ИИ-ассистент для Windows с полным доступом к ПК",
   "main": "src/main/index.cjs",
   "author": "PSYCHIC",
@@ -16,7 +16,8 @@
     "preview": "vite preview",
     "smoke": "vite build --config scripts/vite.smoke.config.js && node scripts/smoke-render.mjs",
     "check": "node scripts/check-syntax.mjs",
-    "assets": "python3 scripts/generate-assets.py"
+    "assets": "python3 scripts/generate-assets.py",
+    "test": "node --test --test-force-exit test/*.test.cjs"
   },
   "dependencies": {
     "@xterm/addon-fit": "0.10.0",

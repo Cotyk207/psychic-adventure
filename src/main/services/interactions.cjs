@@ -1,6 +1,6 @@
 'use strict';
 
-const { uid } = require('../lib/util');
+const { uid } = require('../lib/util.cjs');
 
 class Interactions {
   constructor(getWindow) {

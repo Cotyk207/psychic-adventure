@@ -8,21 +8,23 @@ const path = require('path');
 const fs = require('fs');
 const url = require('url');
 
-const paths = require('./lib/paths');
-const store = require('./lib/store');
-const logger = require('./lib/logger');
-const { Interactions } = require('./services/interactions');
-const { ChatsService } = require('./services/chats');
-const { SkillsService } = require('./services/skills');
-const { MemoryService } = require('./services/memory');
-const { PermissionService } = require('./services/permissions');
-const { BrowserService } = require('./services/browser');
-const { TerminalService } = require('./services/terminal');
-const { MediaService } = require('./services/media');
-const { ComputerService } = require('./services/computer');
-const { Agent } = require('./agent');
-const { registerIpc } = require('./ipc');
-const providers = require('./providers');
+const paths = require('./lib/paths.cjs');
+const store = require('./lib/store.cjs');
+const logger = require('./lib/logger.cjs');
+const { Interactions } = require('./services/interactions.cjs');
+const { ChatsService } = require('./services/chats.cjs');
+const { SkillsService } = require('./services/skills.cjs');
+const { MemoryService } = require('./services/memory.cjs');
+const { PermissionService } = require('./services/permissions.cjs');
+const { BrowserService } = require('./services/browser.cjs');
+const { TerminalService } = require('./services/terminal.cjs');
+const { MediaService } = require('./services/media.cjs');
+const { ComputerService } = require('./services/computer.cjs');
+const { Scheduler } = require('./services/scheduler.cjs');
+const { checkLatest } = require('./services/updates.cjs');
+const { Agent } = require('./agent.cjs');
+const { registerIpc } = require('./ipc.cjs');
+const providers = require('./providers/index.cjs');
 
 const isDev = !!process.env.VITE_DEV_SERVER_URL;
 const APP_ID = 'com.psychic.app';
@@ -227,6 +229,45 @@ function initServices() {
   const terminal = new TerminalService(send);
   const media = new MediaService({ store, send });
   const computer = new ComputerService({ interactions, store });
+  const scheduler = new Scheduler({
+    file: path.join(dirs.userData, 'tasks.json'),
+    logger,
+    onNotify: (payload) => {
+      send('app:scheduled', payload);
+      if (store.get('general.notifications') !== false) {
+        try {
+          const { Notification } = require('electron');
+          if (Notification.isSupported()) {
+            const notification = new Notification({
+              title: `⏰ ${payload.title}`,
+              body: payload.body || '',
+              silent: false,
+            });
+            notification.on('click', () => {
+              mainWindow?.show();
+              mainWindow?.focus();
+            });
+            notification.show();
+          }
+        } catch {}
+      }
+    },
+    onDue: (task) => {
+      // Запускаем агента в отдельном диалоге и не ждём завершения —
+      // планировщик не должен блокироваться на генерации.
+      const provider = store.get('chat.defaultProvider');
+      const model = store.get('chat.defaultModel');
+      Promise.resolve()
+        .then(() => chats.create({ title: `⏰ ${task.title}`, provider, model }))
+        .then((chat) => {
+          send('app:action', { action: 'open-chat', chatId: chat.id });
+          return agent.send({ chatId: chat.id, text: task.prompt });
+        })
+        .catch((err) => logger.warn('scheduled task failed', err.message));
+      return { started: true };
+    },
+  });
+  scheduler.start(30000);
 
   services = {
     mainWindow: null,
@@ -239,6 +280,7 @@ function initServices() {
     terminal,
     media,
     computer,
+    scheduler,
   };
   services.mainWindow = mainWindow;
 
@@ -257,6 +299,7 @@ function initServices() {
     terminal,
     media,
     computer,
+    scheduler,
     agent,
     interactions,
     getTray: () => tray,
@@ -272,6 +315,29 @@ function applyAutoLaunch() {
       args: ['--hidden'],
     });
   } catch {}
+}
+
+async function checkForUpdates(silent = false) {
+  try {
+    const cfg = store.get('updates') || {};
+    if (silent && cfg.auto === false) return null;
+    const info = await checkLatest({
+      owner: 'Cotyk207',
+      repo: 'psychic-adventure',
+      current: app.getVersion(),
+    });
+    if (info.updateAvailable) {
+      send('app:updateAvailable', info);
+      if (!silent) {
+        shell.openExternal(info.url);
+        return info;
+      }
+    }
+    return info;
+  } catch (err) {
+    logger.warn('update check failed', err.message);
+    return null;
+  }
 }
 
 async function detectLocalProviders() {
@@ -341,6 +407,7 @@ if (!gotLock) {
     applyAutoLaunch();
     initServices();
     detectLocalProviders();
+    checkForUpdates(true);
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();

@@ -1,10 +1,10 @@
 'use strict';
 
-const { TOOLS, getTool, toolDefinitions } = require('./definitions');
-const files = require('./files');
-const { runCommand } = require('./shell');
-const { searchWeb, fetchUrl } = require('../services/search');
-const { withTimeout, truncate } = require('../lib/util');
+const { TOOLS, getTool, toolDefinitions } = require('./definitions.cjs');
+const files = require('./files.cjs');
+const { runCommand } = require('./shell.cjs');
+const { searchWeb, fetchUrl } = require('../services/search.cjs');
+const { withTimeout, truncate } = require('../lib/util.cjs');
 
 const implementations = {
   read_file: (args) => files.readFile(args),
@@ -110,7 +110,7 @@ const implementations = {
   },
 
   install_skill: async (args, ctx) => {
-    const providers = require('../providers');
+    const providers = require('../providers/index.cjs');
     if (args.url) {
       const skill = await ctx.services.skills.installFromUrl(args.url, providers);
       return { text: `✅ Скилл установлен: ${skill.name}`, data: skill };

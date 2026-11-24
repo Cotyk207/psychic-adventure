@@ -5,6 +5,7 @@ import Icon from './Icon';
 import Logo from './Logo';
 
 const NAV = [
+  { id: 'dashboard', label: 'Обзор', icon: 'zap', view: 'dashboard' },
   { id: 'chat', label: 'Диалоги', icon: 'message-square', view: 'chat' },
   { id: 'skills', label: 'Скиллы', icon: 'sparkles', view: 'skills' },
   { id: 'media', label: 'Медиа-студия', icon: 'image', view: 'media' },

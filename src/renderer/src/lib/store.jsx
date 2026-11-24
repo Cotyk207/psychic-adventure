@@ -32,6 +32,8 @@ export const initialState = {
   windowState: { maximized: false, fullscreen: false, focused: true },
   searchQuery: '',
   terminalSessions: [],
+  tasks: [],
+  update: null,
   splash: true,
   settingsTab: 'general',
 };
@@ -136,6 +138,10 @@ function reducer(state, action) {
       return { ...state, splash: action.splash };
     case 'SET_SETTINGS_TAB':
       return { ...state, settingsTab: action.tab };
+    case 'SET_TASKS':
+      return { ...state, tasks: action.tasks };
+    case 'SET_UPDATE':
+      return { ...state, update: action.update };
     default:
       return state;
   }
@@ -214,6 +220,16 @@ export function AppProvider({ children }) {
       const memory = await invoke('memory:list');
       dispatch({ type: 'SET_MEMORY', memory });
       return memory;
+    } catch {
+      return [];
+    }
+  }, []);
+
+  const refreshTasks = useCallback(async () => {
+    try {
+      const tasks = await invoke('tasks:list');
+      dispatch({ type: 'SET_TASKS', tasks: Array.isArray(tasks) ? tasks : [] });
+      return tasks;
     } catch {
       return [];
     }
@@ -374,6 +390,26 @@ export function AppProvider({ children }) {
     }
   }, [toast]);
 
+  const savePrompt = useCallback(async (title, text) => {
+    const value = String(text || '').trim();
+    if (!value) return null;
+    const prompts = Array.isArray(stateRef.current.config?.chat?.prompts) ? stateRef.current.config.chat.prompts : [];
+    const item = {
+      id: `p${Math.random().toString(36).slice(2, 9)}`,
+      title: String(title || value.slice(0, 40)).trim(),
+      text: value,
+      createdAt: Date.now(),
+    };
+    const next = [item, ...prompts.filter((p) => p.text !== value)].slice(0, 50);
+    await updateConfig('chat.prompts', next);
+    return item;
+  }, [updateConfig]);
+
+  const deletePrompt = useCallback(async (id) => {
+    const prompts = Array.isArray(stateRef.current.config?.chat?.prompts) ? stateRef.current.config.chat.prompts : [];
+    await updateConfig('chat.prompts', prompts.filter((p) => p.id !== id));
+  }, [updateConfig]);
+
   const refreshAll = useCallback(async () => {
     await Promise.all([refreshChats(), refreshProviders(), refreshSkills(), refreshMemory(), refreshMedia()]);
   }, [refreshChats, refreshProviders, refreshSkills, refreshMemory, refreshMedia]);
@@ -383,18 +419,23 @@ export function AppProvider({ children }) {
     let cancelled = false;
     (async () => {
       try {
-        const [config, appInfo, chats, providers, skills, memory] = await Promise.all([
+        const [config, appInfo, chats, providers, skills, memory, tasks] = await Promise.all([
           invoke('config:get'),
           invoke('app:getInfo'),
           invoke('chats:list'),
           invoke('providers:list'),
           invoke('skills:list'),
           invoke('memory:list'),
+          invoke('tasks:list').catch(() => []),
         ]);
         if (cancelled) return;
         dispatch({
           type: 'MERGE',
-          payload: { config, appInfo, chats, providers, skills, memory, booted: true, splash: false },
+          payload: {
+            config, appInfo, chats, providers, skills, memory,
+            tasks: Array.isArray(tasks) ? tasks : [],
+            booted: true, splash: false,
+          },
         });
         const active = chats.length ? chats[0] : await createChat();
         if (active) await loadChat(active.id);
@@ -478,9 +519,21 @@ export function AppProvider({ children }) {
     unsubs.push(on('window:state', (payload) => dispatch({ type: 'SET_WINDOW_STATE', payload })));
     unsubs.push(on('window:focus', (focused) => dispatch({ type: 'SET_WINDOW_STATE', payload: { focused } })));
     unsubs.push(on('providers:localDetected', () => refreshProviders()));
-    unsubs.push(on('app:action', ({ action }) => {
+    unsubs.push(on('app:updateAvailable', (info) => {
+      dispatch({ type: 'SET_UPDATE', update: info });
+      toast(`Доступна версия ${info.latest} — обновление на GitHub`, 'info', 'Обновление');
+    }));
+    unsubs.push(on('app:scheduled', (payload) => {
+      toast(payload?.title || 'Сработала задача', 'info', 'Автоматизация');
+      refreshTasks();
+    }));
+    unsubs.push(on('app:action', ({ action, chatId }) => {
       if (action === 'new-chat') createChat();
       if (action === 'settings') openSettings();
+      if (action === 'open-chat' && chatId) {
+        dispatch({ type: 'SET_VIEW', view: 'chat' });
+        loadChat(chatId);
+      }
     }));
 
     unsubs.push(on('music:play', async ({ id, query, action }) => {
@@ -596,6 +649,7 @@ export function AppProvider({ children }) {
     refreshSkills,
     refreshMemory,
     refreshMedia,
+    refreshTasks,
     refreshAll,
     loadChat,
     createChat,
@@ -617,12 +671,14 @@ export function AppProvider({ children }) {
     speak,
     stopSpeaking,
     player,
+    savePrompt,
+    deletePrompt,
   }), [
     state, toast, refreshConfig, refreshChats, refreshProviders, refreshSkills, refreshMemory,
-    refreshMedia, refreshAll, loadChat, createChat, deleteChat, renameChat, pinChat,
+    refreshMedia, refreshTasks, refreshAll, loadChat, createChat, deleteChat, renameChat, pinChat,
     openSettings, closeModal, setView, sendMessage, stopGeneration, regenerate,
     resolvePermission, resolveAsk, updateConfig, patchConfig, startListening,
-    stopListening, speak, stopSpeaking,
+    stopListening, speak, stopSpeaking, savePrompt, deletePrompt,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -3,8 +3,8 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { get, expandHome } = require('../lib/paths');
-const { isProbablyBinary, truncate, formatBytes } = require('../lib/util');
+const { get, expandHome } = require('../lib/paths.cjs');
+const { isProbablyBinary, truncate, formatBytes } = require('../lib/util.cjs');
 
 const MIME = {
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif',

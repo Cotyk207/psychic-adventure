@@ -2,8 +2,8 @@
 
 const fs = require('fs');
 const path = require('path');
-const { get, resourcesPath } = require('../lib/paths');
-const { uid, slugify, truncate } = require('../lib/util');
+const { get, resourcesPath } = require('../lib/paths.cjs');
+const { uid, slugify, truncate } = require('../lib/util.cjs');
 
 function parseFrontmatter(md) {
   const match = String(md).match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);

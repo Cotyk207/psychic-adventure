@@ -104,6 +104,21 @@ const CHAT = {
   ],
 };
 
+const TASKS = [
+  {
+    id: 'task-1',
+    title: 'Утренняя сводка',
+    prompt: 'Найди новости ИИ за вчера',
+    every: 3600000,
+    at: null,
+    enabled: true,
+    runAgent: true,
+    notify: true,
+    lastRunAt: Date.now() - 3600000,
+    nextRunAt: Date.now() + 60000,
+  },
+];
+
 const MEDIA = [
   { name: 'image-1.jpg', path: '/tmp/image-1.jpg', kind: 'images', size: 204800, modified: new Date().toISOString() },
   { name: 'music-1.wav', path: '/tmp/music-1.wav', kind: 'music', size: 1024000, modified: new Date().toISOString() },
@@ -114,6 +129,7 @@ const responses = {
   'app:getInfo': { version: '1.0.0', platform: 'win32', paths: { userData: 'C:\\Users\\test\\AppData\\Roaming\\psychic', workspace: 'C:\\Users\\test\\PSYCHIC Workspace', media: 'C:\\Users\\test\\media', skills: 'C:\\Users\\test\\skills' } },
   'chats:list': [CHAT],
   'chats:get': CHAT,
+  'chats:create': { id: 'chat-2', title: 'Новый диалог', provider: 'pollinations', model: 'openai', createdAt: Date.now(), updatedAt: Date.now(), messages: [], pinned: false },
   'providers:list': PROVIDERS,
   'skills:list': SKILLS,
   'memory:list': [],
@@ -125,6 +141,23 @@ const responses = {
   'media:thumbnail': null,
   'media:dataUrl': 'data:image/png;base64,AAAA',
   'terminal:create': { id: 't-1', shell: 'cmd' },
+  'tasks:list': TASKS,
+  'system:stats': {
+    cpu: { percent: 23, cores: 8, model: 'Test CPU @ 3.20GHz', speed: 3200, loadAvg: [0.4, 0.5, 0.6] },
+    memory: { total: 16 * 1024 ** 3, free: 8 * 1024 ** 3, used: 8 * 1024 ** 3, percent: 50 },
+    disks: [{ path: 'C:\\', total: 512 * 1024 ** 3, free: 128 * 1024 ** 3, used: 384 * 1024 ** 3, percent: 75 }],
+    network: [{ name: 'Ethernet', address: '192.168.1.10', family: 'IPv4' }],
+    uptime: 3600,
+    uptimeText: '1ч 0м',
+    platform: 'win32',
+    release: '10.0.22631',
+    arch: 'x64',
+    hostname: 'DESKTOP-TEST',
+    node: '20',
+    version: '1.0.1',
+    electron: '33.2.0',
+  },
+  'app:checkUpdates': { current: '1.0.1', latest: '1.0.1', updateAvailable: false, url: 'https://github.com/Cotyk207/psychic-adventure/releases' },
 };
 
 const errors = [];
@@ -141,17 +174,33 @@ console.error = (...args) => {
   origError(...args);
 };
 
+const invokeLog = [];
+const handlers = new Map();
 window.psychic = {
   platform: 'win32',
   versions: { electron: '33.2.0', chrome: '130', node: '20' },
   isElectron: true,
   invoke: async (channel, payload) => {
+    invokeLog.push({ channel, payload });
     if (channel in responses) return responses[channel];
-    if (channel === 'terminal:write' || channel === 'browser:hide' || channel === 'browser:setBounds') return null;
     return null;
   },
-  on: () => () => {},
+  on: (channel, fn) => {
+    if (!handlers.has(channel)) handlers.set(channel, new Set());
+    handlers.get(channel).add(fn);
+    return () => handlers.get(channel)?.delete(fn);
+  },
 };
+globalThis.psychic = window.psychic;
+
+function emitToRenderer(channel, payload) {
+  const set = handlers.get(channel);
+  if (!set) return false;
+  for (const fn of set) {
+    try { fn(payload); } catch (err) { errors.push(`handler ${channel}: ${err?.stack || err}`); }
+  }
+  return true;
+}
 globalThis.psychic = window.psychic;
 
 process.on('unhandledRejection', (err) => {
@@ -186,6 +235,7 @@ check('composer', html().includes('composer') || html().includes('textarea'));
 check('status bar', html().includes('statusbar'));
 
 const views = [
+  ['Обзор', 'dash-hero'],
   ['Скиллы', 'skill-card'],
   ['Медиа-студия', 'media-layout'],
   ['Браузер', 'browser-panel'],
@@ -204,7 +254,7 @@ for (const [label, marker] of views) {
 clickByText('Настройки');
 await wait(250);
 check('settings modal', html().includes('settings-main'));
-const tabs = ['Внешний вид', 'Провайдеры', 'Скиллы', 'Память', 'Доступ', 'Медиа', 'О программе'];
+const tabs = ['Внешний вид', 'Провайдеры', 'Скиллы', 'Память', 'Доступ', 'Автоматизация', 'Медиа', 'О программе'];
 for (const tab of tabs) {
   const ok = clickByText(tab);
   await wait(200);
@@ -227,12 +277,84 @@ check('command palette', html().includes('palette') || html().includes('кома
 window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
 await wait(150);
 
-clickByText('Диалоги');
+// Dashboard internals
+clickByText('Обзор');
+await wait(400);
+check('dashboard stats', html().includes('Процессор') && html().includes('Память'));
+check('dashboard tasks', html().includes('Утренняя сводка'));
+check('dashboard quick actions', html().includes('Быстрые действия'));
+
+// Prompt library in welcome (new empty chat)
+const newChatBtn = [...document.querySelectorAll('button')].find((b) => (b.textContent || '').includes('Новый диалог'));
+if (newChatBtn) newChatBtn.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await wait(300);
+check('welcome screen', html().includes('NEURAL LINK'));
+const promptsToggle = [...document.querySelectorAll('button')].find((b) => (b.textContent || '').includes('Мои промпты'));
+if (promptsToggle) promptsToggle.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await wait(150);
+check('prompt library', html().includes('Свой промпт'));
+
+// Save current composer text as a prompt (Ctrl+K also lists it)
+const ta = document.querySelector('.composer-input');
+if (ta) {
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
+  setter.call(ta, 'Тестовый сохранённый промпт');
+  ta.dispatchEvent(new window.Event('input', { bubbles: true }));
+  await wait(120);
+}
+const saveBtn = [...document.querySelectorAll('button')].find((b) => b.getAttribute('title') === 'Сохранить текст как промпт');
+if (saveBtn) saveBtn.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await wait(250);
+check('prompt saved via composer', invokeLog.some((c) => c.channel === 'config:set' && c.payload?.key === 'chat.prompts'));
+
+// Shortcut help overlay
+window.dispatchEvent(new window.KeyboardEvent('keydown', { key: '?', bubbles: true }));
 await wait(200);
+check('shortcut help', html().includes('Горячие клавиши'));
+window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+await wait(150);
+
+// Main → renderer events
+emitToRenderer('permission:request', {
+  tool: { name: 'write_file', label: 'Запись файла', risk: 'write', riskLabel: 'изменение файлов' },
+  summary: 'C:\\Users\\test\\file.txt · 12 симв.',
+  args: { path: 'C:\\Users\\test\\file.txt' },
+});
+await wait(200);
+check('permission modal', html().includes('Запрос разрешения'));
+const deny = [...document.querySelectorAll('button')].find((b) => (b.textContent || '').trim() === 'Отклонить');
+if (deny) deny.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await wait(200);
+check('permission resolved', invokeLog.some((c) => c.channel === 'interactions:resolve'));
+
+emitToRenderer('ask:request', { question: 'Какой формат выбрать?', options: ['JSON', 'Markdown'] });
+await wait(200);
+check('ask modal', html().includes('Какой формат выбрать?') || html().includes('ask'));
+
+emitToRenderer('app:updateAvailable', { latest: '9.9.9', current: '1.0.1', url: 'https://github.com/x' });
+await wait(200);
+check('update toast', html().includes('9.9.9'));
+
+emitToRenderer('app:scheduled', { title: 'Тестовая задача', body: 'Пора' });
+await wait(200);
+check('scheduled toast', html().includes('Тестовая задача'));
+
+// Streaming state from agent event
+emitToRenderer('agent:event', { type: 'start', chatId: 'chat-2', messageId: 'm3', provider: 'pollinations', model: 'openai' });
+await wait(200);
+check('streaming banner', html().includes('PSYCHIC работает'));
+emitToRenderer('agent:event', { type: 'token', chatId: 'chat-2', messageId: 'm3', delta: 'Привет, я думаю…' });
+await wait(150);
+check('streaming text', html().includes('Привет, я думаю'));
+emitToRenderer('agent:event', { type: 'done', chatId: 'chat-2', messageId: 'm3', content: 'Готово' });
+await wait(200);
+check('stream ended', !html().includes('PSYCHIC работает'));
+
+// Model picker
 const modelPill = document.querySelector('.model-pill');
 if (modelPill) modelPill.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
 await wait(200);
-check('model picker', html().includes('model') && html().length > 2000);
+check('model picker', html().includes('модел') || html().includes('Pollinations'));
 
 console.log(`\nroot html length: ${html().length}`);
 for (const [name, ok] of checks) console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}`);

@@ -1,8 +1,8 @@
 'use strict';
 
-const { joinUrl, safeJson, truncate, uid } = require('../lib/util');
-const { sseJson, httpError } = require('./sse');
-const { buildHeaders } = require('./openai');
+const { joinUrl, safeJson, truncate, uid } = require('../lib/util.cjs');
+const { sseJson, httpError } = require('./sse.cjs');
+const { buildHeaders } = require('./openai.cjs');
 
 function textOf(content) {
   if (typeof content === 'string') return content;

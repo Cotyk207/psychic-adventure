@@ -3,8 +3,8 @@
 const fs = require('fs');
 const path = require('path');
 const { app } = require('electron');
-const { deepMerge, getPath, setPath, uid } = require('./util');
-const { get } = require('./paths');
+const { deepMerge, getPath, setPath, uid } = require('./util.cjs');
+const { get } = require('./paths.cjs');
 
 const PRESETS = require('../../shared/providers.json');
 

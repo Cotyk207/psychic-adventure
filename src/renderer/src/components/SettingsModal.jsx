@@ -13,6 +13,7 @@ const TABS = [
   ['skills', 'Скиллы', 'sparkles'],
   ['memory', 'Память', 'brain'],
   ['permissions', 'Доступ', 'shield'],
+  ['automation', 'Автоматизация', 'alarm-clock'],
   ['media', 'Медиа', 'image'],
   ['about', 'О программе', 'info'],
 ];
@@ -46,7 +47,7 @@ function Field({ label, hint, children, wide }) {
 }
 
 export default function SettingsModal({ initialTab }) {
-  const { state, closeModal, updateConfig, patchConfig, refreshConfig, refreshProviders, refreshSkills, refreshMemory, toast } = useApp();
+  const { state, closeModal, updateConfig, patchConfig, refreshConfig, refreshProviders, refreshSkills, refreshMemory, refreshTasks, toast } = useApp();
   const [tab, setTab] = useState(initialTab || 'general');
   const config = state.config || {};
   const providers = state.providers || [];
@@ -479,6 +480,10 @@ export default function SettingsModal({ initialTab }) {
               <PermissionsTab config={config} onChange={updateConfig} toast={toast} />
             )}
 
+            {tab === 'automation' && (
+              <AutomationTab tasks={state.tasks} refresh={refreshTasks} toast={toast} />
+            )}
+
             {tab === 'media' && (
               <MediaTab config={config} onChange={updateConfig} />
             )}
@@ -503,6 +508,11 @@ export default function SettingsModal({ initialTab }) {
                   <div className="about-stat"><div className="k">Node</div><div className="v">{window.psychic?.versions?.node || '—'}</div></div>
                   <div className="about-stat"><div className="k">Провайдеров</div><div className="v">{providers.length}</div></div>
                 </div>
+                <div className="section" style={{ marginTop: 20 }}>
+                  <div className="section-title"><Icon name="refresh" size={13} /> Обновления</div>
+                  <UpdateBlock config={config} onChange={updateConfig} toast={toast} />
+                </div>
+
                 <div className="section" style={{ marginTop: 20 }}>
                   <div className="section-title"><Icon name="folder-open" size={13} /> Пути</div>
                   <div className="about-grid">
@@ -1037,6 +1047,259 @@ function MediaTab({ config, onChange }) {
         <Field label="Replicate ключ">
           <input className="input mono" type="password" value={media.replicateKey || ''} onChange={(e) => onChange('media.replicateKey', e.target.value)} />
         </Field>
+      </div>
+    </>
+  );
+}
+
+
+function UpdateBlock({ config, onChange, toast }) {
+  const [busy, setBusy] = useState(false);
+  const [info, setInfo] = useState(null);
+
+  const check = async () => {
+    setBusy(true);
+    try {
+      const result = await invoke('app:checkUpdates');
+      setInfo(result);
+      if (result.updateAvailable) {
+        toast(`Доступна версия ${result.latest}`, 'info', 'Обновление');
+      } else {
+        toast('У тебя последняя версия', 'success');
+      }
+    } catch (err) {
+      toast(err.message, 'error', 'Проверка обновлений');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <Field label="Проверять обновления при запуске" hint="Сверяет версию с GitHub Releases">
+        <Switch
+          value={config.updates?.auto !== false}
+          onChange={(v) => onChange('updates.auto', v)}
+        />
+      </Field>
+      <Field
+        label="Проверить сейчас"
+        hint={info ? (info.updateAvailable ? `Доступна ${info.latest}` : `Актуальная версия: ${info.current}`) : 'Версия сравнивается с последним релизом'}
+      >
+        <button className="btn btn-sm" onClick={check} disabled={busy}>
+          {busy ? <span className="spinner sm" /> : <Icon name="refresh" size={13} />}
+          Проверить
+        </button>
+        {info?.updateAvailable && (
+          <button
+            className="btn btn-sm btn-primary"
+            onClick={() => invoke('app:openRelease', { url: info.url }).catch((err) => toast(err.message, 'error'))}
+          >
+            <Icon name="external" size={13} /> Скачать {info.latest}
+          </button>
+        )}
+      </Field>
+    </>
+  );
+}
+
+function AutomationTab({ tasks, refresh, toast }) {
+  const [form, setForm] = useState({ title: '', prompt: '', mode: 'every', everyValue: 30, everyUnit: 'minutes', at: '', runAgent: true, notify: true });
+  const [busy, setBusy] = useState(false);
+
+  const toInterval = (value, unit) => {
+    const n = Number(value) || 0;
+    const mult = unit === 'minutes' ? 60000 : unit === 'hours' ? 3600000 : 86400000;
+    return n > 0 ? n * mult : null;
+  };
+
+  const add = async () => {
+    setBusy(true);
+    try {
+      const payload = {
+        title: form.title.trim(),
+        prompt: form.prompt.trim(),
+        runAgent: form.runAgent,
+        notify: form.notify,
+      };
+      if (form.mode === 'every') {
+        payload.every = toInterval(form.everyValue, form.everyUnit);
+      } else {
+        if (!form.at) throw new Error('Выбери дату и время');
+        payload.at = new Date(form.at).getTime();
+      }
+      await invoke('tasks:add', { task: payload });
+      await refresh();
+      setForm((f) => ({ ...f, title: '', prompt: '' }));
+      toast('Задача добавлена', 'success');
+    } catch (err) {
+      toast(err.message, 'error', 'Автоматизация');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const act = async (fn, success) => {
+    try {
+      await fn();
+      await refresh();
+      if (success) toast(success, 'success');
+    } catch (err) {
+      toast(err.message, 'error', 'Автоматизация');
+    }
+  };
+
+  return (
+    <>
+      <div className="section">
+        <div className="section-title"><Icon name="alarm-clock" size={13} /> Новая задача</div>
+        <div className="section-hint">
+          Задачи работают, пока PSYCHIC запущен (в трее). Можно просто напомнить
+          или сразу запустить агента с промптом — он создаст диалог и выполнит задачу.
+        </div>
+        <div className="automation-form">
+          <div className="field wide">
+            <div>
+              <div className="field-label">Название</div>
+              <div className="field-hint">Например: «Утренняя сводка по ИИ»</div>
+            </div>
+            <div className="field-control">
+              <input
+                className="input"
+                style={{ width: '100%' }}
+                value={form.title}
+                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                placeholder="Утренняя сводка"
+              />
+            </div>
+          </div>
+
+          <div className="field wide">
+            <div>
+              <div className="field-label">Промпт для агента</div>
+              <div className="field-hint">Можно оставить пустым, если нужно только напоминание</div>
+            </div>
+            <div className="field-control">
+              <textarea
+                className="textarea"
+                style={{ width: '100%', minHeight: 64 }}
+                value={form.prompt}
+                onChange={(e) => setForm((f) => ({ ...f, prompt: e.target.value }))}
+                placeholder="Найди в интернете новости ИИ за вчера и сделай короткую выжимку"
+              />
+            </div>
+          </div>
+
+          <div className="field wide">
+            <div className="field-label">Тип задачи</div>
+            <div className="field-control">
+              <div className="segmented">
+                <button className={cn('segmented-btn', form.mode === 'every' && 'active')} onClick={() => setForm((f) => ({ ...f, mode: 'every' }))}>
+                  Повторяется
+                </button>
+                <button className={cn('segmented-btn', form.mode === 'once' && 'active')} onClick={() => setForm((f) => ({ ...f, mode: 'once' }))}>
+                  Один раз
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {form.mode === 'every' ? (
+            <div className="field wide">
+              <div className="field-label">Как часто</div>
+              <div className="field-control">
+                <input
+                  className="input mono"
+                  type="number"
+                  min={1}
+                  value={form.everyValue}
+                  onChange={(e) => setForm((f) => ({ ...f, everyValue: Number(e.target.value) }))}
+                  style={{ width: 110 }}
+                />
+                <select
+                  className="select"
+                  value={form.everyUnit}
+                  onChange={(e) => setForm((f) => ({ ...f, everyUnit: e.target.value }))}
+                >
+                  <option value="minutes">минут</option>
+                  <option value="hours">часов</option>
+                  <option value="days">дней</option>
+                </select>
+              </div>
+            </div>
+          ) : (
+            <div className="field wide">
+              <div className="field-label">Когда</div>
+              <div className="field-control">
+                <input
+                  className="input mono"
+                  type="datetime-local"
+                  value={form.at}
+                  onChange={(e) => setForm((f) => ({ ...f, at: e.target.value }))}
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="field wide">
+            <div className="field-label">Действия</div>
+            <div className="field-control">
+              <label className="checkbox-row">
+                <Switch value={form.notify} onChange={(v) => setForm((f) => ({ ...f, notify: v }))} />
+                <span>Показать уведомление</span>
+              </label>
+              <label className="checkbox-row">
+                <Switch value={form.runAgent} onChange={(v) => setForm((f) => ({ ...f, runAgent: v }))} />
+                <span>Запустить агента с промптом</span>
+              </label>
+            </div>
+          </div>
+
+          <button className="btn btn-primary" onClick={add} disabled={busy || !form.title.trim()}>
+            {busy ? <span className="spinner sm" /> : <Icon name="plus" size={14} />}
+            Добавить задачу
+          </button>
+        </div>
+      </div>
+
+      <div className="section">
+        <div className="section-title"><Icon name="list-checks" size={13} /> Задачи</div>
+        <div className="automation-list">
+          {(tasks || []).map((task) => (
+            <div key={task.id} className={cn('automation-row', task.enabled === false && 'disabled')}>
+              <div className="automation-info">
+                <div className="automation-name">{task.title}</div>
+                <div className="automation-meta">
+                  {task.every
+                    ? `каждые ${Math.round(task.every / 60000)} мин`
+                    : `один раз · ${new Date(task.at).toLocaleString('ru-RU')}`}
+                  {' · '}{task.runAgent !== false ? 'запускает агента' : 'только уведомление'}
+                  {task.lastRunAt ? ` · последний запуск ${new Date(task.lastRunAt).toLocaleString('ru-RU')}` : ''}
+                </div>
+                {task.prompt && <div className="automation-prompt truncate">{task.prompt}</div>}
+              </div>
+              <div className="automation-actions">
+                <Switch
+                  value={task.enabled !== false}
+                  onChange={(v) => act(() => invoke('tasks:toggle', { id: task.id, enabled: v }))}
+                />
+                <button className="btn btn-sm" onClick={() => act(() => invoke('tasks:runNow', { id: task.id }), 'Задача запущена')}>
+                  <Icon name="play" size={12} /> Сейчас
+                </button>
+                <button className="icon-btn sm danger" onClick={() => act(() => invoke('tasks:delete', { id: task.id }), 'Задача удалена')}>
+                  <Icon name="trash" size={13} />
+                </button>
+              </div>
+            </div>
+          ))}
+          {!(tasks || []).length && (
+            <div className="empty" style={{ padding: 22 }}>
+              <Icon name="alarm-clock" size={30} />
+              <div className="empty-title">Задач пока нет</div>
+              <div className="empty-text">Добавь первую — например, ежедневную сводку новостей.</div>
+            </div>
+          )}
+        </div>
       </div>
     </>
   );

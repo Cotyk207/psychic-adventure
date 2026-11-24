@@ -4,18 +4,20 @@ const { app, dialog, shell, clipboard, Notification, ipcMain, nativeImage } = re
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const store = require('./lib/store');
-const paths = require('./lib/paths');
-const logger = require('./lib/logger');
-const providers = require('./providers');
-const files = require('./tools/files');
-const { searchWeb, fetchUrl } = require('./services/search');
-const { resolveRendererTask } = require('./services/media');
+const store = require('./lib/store.cjs');
+const paths = require('./lib/paths.cjs');
+const logger = require('./lib/logger.cjs');
+const providers = require('./providers/index.cjs');
+const files = require('./tools/files.cjs');
+const { searchWeb, fetchUrl } = require('./services/search.cjs');
+const { resolveRendererTask } = require('./services/media.cjs');
+const system = require('./services/system.cjs');
+const { checkLatest } = require('./services/updates.cjs');
 
 function registerIpc(deps) {
   const {
     getWindow, chats, skills, memory, permissions, browser, terminal,
-    media, computer, agent, interactions, getTray,
+    media, computer, agent, interactions, scheduler, getTray,
   } = deps;
 
   const win = () => getWindow();
@@ -110,6 +112,43 @@ function registerIpc(deps) {
     logger[level] ? logger[level](message) : logger.info(message);
     return true;
   });
+  // ── Система ─────────────────────────────────────────────────────────────
+  handle('system:stats', () => system.collect({
+    extra: { version: app.getVersion(), electron: process.versions.electron },
+  }));
+
+  // ── Автоматизация ───────────────────────────────────────────────────────
+  handle('tasks:list', () => (scheduler ? scheduler.list() : []));
+  handle('tasks:add', ({ task }) => {
+    if (!scheduler) throw new Error('Планировщик недоступен');
+    return scheduler.add(task);
+  });
+  handle('tasks:update', ({ id, patch }) => {
+    if (!scheduler) throw new Error('Планировщик недоступен');
+    return scheduler.update(id, patch);
+  });
+  handle('tasks:toggle', ({ id, enabled }) => {
+    if (!scheduler) throw new Error('Планировщик недоступен');
+    return scheduler.toggle(id, enabled);
+  });
+  handle('tasks:delete', ({ id }) => (scheduler ? scheduler.remove(id) : false));
+  handle('tasks:runNow', async ({ id }) => {
+    if (!scheduler) throw new Error('Планировщик недоступен');
+    return scheduler.runNow(id);
+  });
+
+  // ── Обновления ──────────────────────────────────────────────────────────
+  handle('app:checkUpdates', () => checkLatest({
+    owner: 'Cotyk207',
+    repo: 'psychic-adventure',
+    current: app.getVersion(),
+  }));
+  handle('app:openRelease', ({ url }) => {
+    if (!/^https:\/\/github\.com\//.test(String(url || ''))) throw new Error('Недопустимая ссылка');
+    shell.openExternal(url);
+    return true;
+  });
+
   handle('app:notify', ({ title, body, silent }) => {
     if (!Notification.isSupported()) return false;
     const n = new Notification({ title: String(title || 'PSYCHIC'), body: String(body || ''), silent: !!silent });
@@ -333,7 +372,7 @@ function registerIpc(deps) {
     const st = fs.statSync(abs);
     if (st.size > 30 * 1024 * 1024) throw new Error('Файл слишком большой');
     const buf = fs.readFileSync(abs);
-    if (require('../lib/util').isProbablyBinary(buf)) {
+    if (require('./lib/util.cjs').isProbablyBinary(buf)) {
       return { path: abs, binary: true, base64: buf.toString('base64'), size: st.size, mime: files.mimeOf(abs) };
     }
     return { path: abs, content: buf.toString('utf8'), size: st.size, binary: false, mime: files.mimeOf(abs) };

@@ -1,7 +1,7 @@
 'use strict';
 
 const { spawn } = require('child_process');
-const { uid } = require('../lib/util');
+const { uid } = require('../lib/util.cjs');
 
 class TerminalService {
   constructor(send) {
@@ -63,6 +63,7 @@ class TerminalService {
 
   resize() {
     // Without a PTY there is nothing to resize; xterm handles line wrapping.
+    return true;
   }
 
   close(id) {

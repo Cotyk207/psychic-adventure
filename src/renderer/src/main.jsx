@@ -6,6 +6,7 @@ import './styles/layout.css';
 import './styles/components.css';
 import './styles/chat.css';
 import './styles/panels.css';
+import './styles/dashboard.css';
 import './styles/settings.css';
 import '@xterm/xterm/css/xterm.css';
 

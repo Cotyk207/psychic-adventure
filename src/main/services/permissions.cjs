@@ -1,8 +1,8 @@
 'use strict';
 
 const path = require('path');
-const { isInside, isDeniedPath, resolvePath } = require('../tools/files');
-const { truncate } = require('../lib/util');
+const { isInside, isDeniedPath, resolvePath } = require('../tools/files.cjs');
+const { truncate } = require('../lib/util.cjs');
 
 class PermissionError extends Error {
   constructor(message) {

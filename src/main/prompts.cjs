@@ -1,8 +1,8 @@
 'use strict';
 
 const os = require('os');
-const { get } = require('./lib/paths');
-const { todayString, truncate } = require('./lib/util');
+const { get } = require('./lib/paths.cjs');
+const { todayString, truncate } = require('./lib/util.cjs');
 
 const BASE_IDENTITY = `Ты — PSYCHIC, киберпанк-ИИ-ассистент, работающий прямо на компьютере пользователя.
 Ты — не просто чат-бот: у тебя есть инструменты для чтения и записи файлов, запуска команд, поиска в интернете, браузера, генерации картинок, музыки и видео.

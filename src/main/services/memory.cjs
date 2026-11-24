@@ -2,7 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { uid } = require('../lib/util');
+const { uid } = require('../lib/util.cjs');
 
 const CATEGORIES = ['notes', 'facts', 'people', 'projects'];
 
@@ -113,8 +113,9 @@ class MemoryService {
   }
 
   search(query, limit = 5) {
-    const q = tokenize(query);
-    if (!q.length) return this.all().slice(0, limit);
+    const raw = String(query || '').trim();
+    const q = tokenize(raw);
+    if (!q.length) return raw ? [] : this.all().slice(0, limit);
     const scored = this.items.map((item) => {
       const tokens = tokenize(item.content + ' ' + (item.tags || []).join(' '));
       let score = 0;
@@ -122,7 +123,7 @@ class MemoryService {
         if (tokens.includes(word)) score += 3;
         else if (tokens.some((t) => t.includes(word) || word.includes(t))) score += 1;
       }
-      if (item.content.toLowerCase().includes(query.toLowerCase())) score += 2;
+      if (item.content.toLowerCase().includes(raw.toLowerCase())) score += 2;
       return { item, score };
     });
     return scored

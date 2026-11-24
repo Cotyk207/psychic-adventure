@@ -2,12 +2,12 @@
 
 const fs = require('fs');
 const path = require('path');
-const { chat: providerChat, supportsVision } = require('./providers');
-const { toolDefinitions, executeTool } = require('./tools');
-const { buildSystemPrompt } = require('./prompts');
-const { uid, truncate } = require('./lib/util');
-const { get } = require('./lib/paths');
-const { mimeOf } = require('./tools/files');
+const { chat: providerChat, supportsVision } = require('./providers/index.cjs');
+const { toolDefinitions, executeTool } = require('./tools/index.cjs');
+const { buildSystemPrompt } = require('./prompts.cjs');
+const { uid, truncate } = require('./lib/util.cjs');
+const { get } = require('./lib/paths.cjs');
+const { mimeOf } = require('./tools/files.cjs');
 
 function deriveTitle(text) {
   const clean = String(text || '')
@@ -27,13 +27,13 @@ class Agent {
     this.memory = memory;
     this.interactions = interactions;
     this.services = services;
-    this.send = send;
+    this.notify = send;
     this.active = new Map();
   }
 
   emit(chatId, type, payload = {}) {
     try {
-      this.send('agent:event', { chatId, type, ...payload });
+      this.notify('agent:event', { chatId, type, ...payload });
     } catch (err) {
       console.error('emit failed', err);
     }

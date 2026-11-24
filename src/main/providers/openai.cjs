@@ -1,7 +1,7 @@
 'use strict';
 
-const { joinUrl, normalizeBaseUrl, safeJson, truncate } = require('../lib/util');
-const { sseJson, httpError } = require('./sse');
+const { joinUrl, normalizeBaseUrl, safeJson, truncate } = require('../lib/util.cjs');
+const { sseJson, httpError } = require('./sse.cjs');
 
 function buildHeaders(provider) {
   const h = {

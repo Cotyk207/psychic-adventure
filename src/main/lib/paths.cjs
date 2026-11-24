@@ -58,7 +58,7 @@ function get() {
 function resourcesPath(...parts) {
   const base = app.isPackaged
     ? path.join(process.resourcesPath)
-    : path.join(__dirname, '..', '..', 'resources');
+    : path.join(__dirname, '..', '..', '..', 'resources');
   return path.join(base, ...parts);
 }
 

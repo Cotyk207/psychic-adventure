@@ -1,8 +1,8 @@
 'use strict';
 
 const { spawn } = require('child_process');
-const { resolvePath } = require('./files');
-const { truncate, formatBytes } = require('../lib/util');
+const { resolvePath } = require('./files.cjs');
+const { truncate, formatBytes } = require('../lib/util.cjs');
 
 function buildShell(command, cwd) {
   if (process.platform === 'win32') {

@@ -1,6 +1,6 @@
 'use strict';
 
-const { safeJson } = require('../lib/util');
+const { safeJson } = require('../lib/util.cjs');
 
 async function* sseJson(body) {
   if (!body) return;

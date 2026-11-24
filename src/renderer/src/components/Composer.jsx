@@ -5,7 +5,7 @@ import { cn, isImageFile } from '../lib/utils';
 import Icon from './Icon';
 
 export default function Composer() {
-  const { state, dispatch, sendMessage, stopGeneration, updateConfig, startListening } = useApp();
+  const { state, dispatch, sendMessage, stopGeneration, updateConfig, startListening, savePrompt, toast } = useApp();
   const [text, setText] = useState('');
   const [attachments, setAttachments] = useState([]);
   const taRef = useRef(null);
@@ -29,6 +29,12 @@ export default function Composer() {
   useEffect(() => {
     resize();
   }, [text]);
+
+  useEffect(() => {
+    const onAttach = () => addFiles();
+    window.addEventListener('psychic:attach', onAttach);
+    return () => window.removeEventListener('psychic:attach', onAttach);
+  }, []);
 
   useEffect(() => {
     if (state.config?.appearance?.messageBubbles === false) {
@@ -132,6 +138,21 @@ export default function Composer() {
             title="Выбрать модель"
           >
             <Icon name="cpu" size={15} />
+          </button>
+          <button
+            className="icon-btn"
+            onClick={async () => {
+              const value = text.trim();
+              if (!value) {
+                toast('Сначала напиши текст промпта', 'warning');
+                return;
+              }
+              await savePrompt(value.slice(0, 40), value);
+              toast('Промпт сохранён — доступен в «Мои промпты» и Ctrl+K', 'success');
+            }}
+            title="Сохранить текст как промпт"
+          >
+            <Icon name="bookmark" size={15} />
           </button>
 
           <span className="spacer" />

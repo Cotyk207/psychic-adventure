@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { AppProvider, useApp } from './lib/store';
 import { cn } from './lib/utils';
+import { invoke } from './lib/api';
 import Icon from './components/Icon';
 import BackgroundFX from './components/BackgroundFX';
 import TitleBar from './components/TitleBar';
@@ -26,8 +27,11 @@ import MusicPanel from './components/MusicPanel';
 import MemoryPanel from './components/MemoryPanel';
 import MediaRenderer from './components/MediaRenderer';
 import ErrorBoundary from './components/ErrorBoundary';
+import Dashboard from './components/Dashboard';
+import ShortcutHelp from './components/ShortcutHelp';
 
 const VIEW_META = {
+  dashboard: { title: 'Обзор', icon: 'zap' },
   chat: { title: 'Диалог', icon: 'message-square' },
   skills: { title: 'Скиллы', icon: 'sparkles' },
   media: { title: 'Медиа-студия', icon: 'image' },
@@ -38,7 +42,7 @@ const VIEW_META = {
   memory: { title: 'Память', icon: 'brain' },
 };
 
-const VIEW_ORDER = ['chat', 'skills', 'media', 'browser', 'files', 'terminal', 'music', 'memory'];
+const VIEW_ORDER = ['dashboard', 'chat', 'skills', 'media', 'browser', 'files', 'terminal', 'music', 'memory'];
 
 function MainHead() {
   const { state, dispatch, openSettings } = useApp();
@@ -77,7 +81,7 @@ function MainHead() {
 }
 
 function Shell() {
-  const { state, dispatch, setView, createChat, openSettings, closeModal, updateConfig, stopGeneration } = useApp();
+  const { state, dispatch, setView, createChat, openSettings, closeModal, updateConfig, stopGeneration, player, toast } = useApp();
 
   useEffect(() => {
     const onKeyDown = (event) => {
@@ -95,10 +99,28 @@ function Shell() {
       } else if (mod && key === 'b') {
         event.preventDefault();
         updateConfig('appearance.sidebarCollapsed', !state.config?.appearance?.sidebarCollapsed);
-      } else if (mod && /^[1-8]$/.test(event.key) && !event.shiftKey) {
+      } else if (mod && key === 'o') {
+        event.preventDefault();
+        window.dispatchEvent(new CustomEvent('psychic:attach'));
+      } else if (mod && key === 'e') {
+        event.preventDefault();
+        if (state.activeChatId) {
+          invoke('chats:export', { id: state.activeChatId })
+            .then((path) => { if (path) toast(`Диалог экспортирован: ${path}`, 'success'); })
+            .catch((err) => toast(err.message, 'error'));
+        }
+      } else if (mod && key === 'm') {
+        event.preventDefault();
+        player.toggle();
+      } else if (mod && /^[1-9]$/.test(event.key) && !event.shiftKey) {
         event.preventDefault();
         const view = VIEW_ORDER[Number(event.key) - 1];
         if (view) setView(view);
+      } else if (event.key === '?' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        const tag = document.activeElement?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+        event.preventDefault();
+        dispatch({ type: 'SET_MODAL', modal: state.modal === 'shortcuts' ? null : 'shortcuts' });
       } else if (event.key === 'Escape') {
         if (state.modal) closeModal();
         else if (state.streaming) stopGeneration();
@@ -106,13 +128,14 @@ function Shell() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [state.modal, state.view, state.config, state.streaming, dispatch, setView, createChat, openSettings, closeModal, updateConfig, stopGeneration]);
+  }, [state.modal, state.view, state.config, state.streaming, state.activeChatId, dispatch, setView, createChat, openSettings, closeModal, updateConfig, stopGeneration, player, toast]);
 
   if (state.splash || !state.booted) return <LoadingScreen />;
   if (state.bootError && !state.config) return <LoadingScreen error={state.bootError} />;
 
   const renderView = () => {
     switch (state.view) {
+      case 'dashboard': return <Dashboard />;
       case 'skills': return <SkillsPanel />;
       case 'media': return <MediaStudio />;
       case 'browser': return <BrowserPanel />;
@@ -143,6 +166,7 @@ function Shell() {
       <MediaRenderer />
 
       {state.modal === 'settings' && <SettingsModal initialTab={state.settingsTab} />}
+      {state.modal === 'shortcuts' && <ShortcutHelp />}
       {state.modal === 'palette' && <CommandPalette />}
       {state.modal === 'modelPicker' && <ModelPicker />}
       {state.modal === 'skillEditor' && <SkillEditor skill={state.modalData} />}
