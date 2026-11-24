@@ -703,3 +703,71 @@ input[type="range"]::-webkit-slider-thumb {
   background: linear-gradient(90deg, transparent, var(--border-strong), transparent);
   margin: 16px 0;
 }
+
+/* ══ ЭКРАН ОШИБКИ ═══════════════════════════════════════════════════════════ */
+.error-screen {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--danger) 14%, transparent), transparent 60%),
+    var(--bg0);
+  z-index: 9999;
+  padding: 24px;
+}
+.error-panel {
+  width: min(560px, 94vw);
+  padding: 26px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--surface) 92%, transparent), color-mix(in srgb, var(--bg0) 85%, transparent));
+  box-shadow: 0 30px 80px -40px var(--glow-2);
+  text-align: center;
+}
+.error-icon {
+  width: 54px;
+  height: 54px;
+  margin: 0 auto 14px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+  box-shadow: 0 0 26px -8px var(--danger);
+}
+.error-title {
+  font-family: var(--font-display);
+  font-size: 15px;
+  letter-spacing: 0.2em;
+  color: var(--danger);
+  margin-bottom: 8px;
+}
+.error-text {
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+}
+.error-stack {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-faint);
+  background: color-mix(in srgb, var(--bg0) 60%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  text-align: left;
+  max-height: 120px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.error-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}

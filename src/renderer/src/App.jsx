@@ -25,6 +25,7 @@ import TerminalPanel from './components/TerminalPanel';
 import MusicPanel from './components/MusicPanel';
 import MemoryPanel from './components/MemoryPanel';
 import MediaRenderer from './components/MediaRenderer';
+import ErrorBoundary from './components/ErrorBoundary';
 
 const VIEW_META = {
   chat: { title: 'Диалог', icon: 'message-square' },
@@ -154,8 +155,10 @@ function Shell() {
 
 export default function App() {
   return (
-    <AppProvider>
-      <Shell />
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <Shell />
+      </AppProvider>
+    </ErrorBoundary>
   );
 }
