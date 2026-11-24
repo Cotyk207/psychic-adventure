@@ -55,11 +55,22 @@ function get() {
   return cached || init();
 }
 
+/**
+ * Путь к ресурсу приложения.
+ *
+ * В собранном приложении часть ресурсов лежит в extraResources рядом с app.asar
+ * (skills, wallpapers), а часть — внутри самого asar (icon.png и прочее).
+ * Поэтому перебираем оба варианта и берём существующий: иначе иконка окна и трея
+ * в собранном EXE просто не находились.
+ */
 function resourcesPath(...parts) {
-  const base = app.isPackaged
-    ? path.join(process.resourcesPath)
-    : path.join(__dirname, '..', '..', '..', 'resources');
-  return path.join(base, ...parts);
+  const candidates = [
+    path.join(__dirname, '..', '..', '..', 'resources', ...parts),
+    process.resourcesPath ? path.join(process.resourcesPath, ...parts) : null,
+  ].filter(Boolean);
+  return candidates.find((candidate) => {
+    try { return fs.existsSync(candidate); } catch { return false; }
+  }) || candidates[0];
 }
 
 function tempFile(ext = 'tmp') {

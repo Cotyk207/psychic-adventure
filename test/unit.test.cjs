@@ -16,6 +16,7 @@ const { MemoryService, tokenize } = require('../src/main/services/memory.cjs');
 const { SkillsService, parseFrontmatter } = require('../src/main/services/skills.cjs');
 const { PermissionService } = require('../src/main/services/permissions.cjs');
 const { buildSystemPrompt } = require('../src/main/prompts.cjs');
+const paths = require('../src/main/lib/paths.cjs');
 const { sseJson } = require('../src/main/providers/sse.cjs');
 const { chat } = require('../src/main/providers/index.cjs');
 const providers = require('../src/main/providers/index.cjs');
@@ -535,6 +536,25 @@ test('permissions: always запоминает разрешение на сес�
   service.sessionAllowed.add('browser_open');
   await service.check(tool, { url: 'https://example.com' });
   assert.equal(requests.length, 0);
+});
+
+// ══ ресурсы приложения ═══════════════════════════════════════════════════
+
+test('resources: иконка, обои и скиллы находятся по resourcesPath', () => {
+  const icon = paths.resourcesPath('icon.png');
+  assert.equal(fs.existsSync(icon), true, `нет иконки: ${icon}`);
+  assert.ok(fs.statSync(icon).size > 1000, 'иконка не пустая');
+
+  const wallpapers = paths.resourcesPath('wallpapers');
+  const images = fs.readdirSync(wallpapers).filter((f) => /\.(jpg|png)$/i.test(f));
+  assert.ok(images.length >= 10, `обоев всего ${images.length}`);
+
+  const skills = paths.resourcesPath('skills');
+  const skillDirs = fs.readdirSync(skills, { withFileTypes: true }).filter((d) => d.isDirectory());
+  assert.ok(skillDirs.length >= 12, `папок скиллов ${skillDirs.length}`);
+  for (const dir of skillDirs) {
+    assert.equal(fs.existsSync(path.join(skills, dir.name, 'SKILL.md')), true, `нет SKILL.md в ${dir.name}`);
+  }
 });
 
 // ══ prompts ═════════════════════════════════════════════════════════════════

@@ -17,8 +17,8 @@ const annotate = (line) => {
 function run(command, args) {
   const result = spawnSync(command, args, { cwd: root, encoding: 'utf8', env: process.env });
   const output = `${result.stdout || ''}${result.stderr || ''}`;
+  process.stdout.write(output);
   if (result.status !== 0) {
-    console.log(output.slice(-4000));
     for (const line of output.split('\n').slice(-40)) annotate(line);
     process.exit(result.status || 1);
   }
