@@ -248,6 +248,8 @@ const shell = {
   showItemInFolder: () => {},
 };
 
+let _clipboardText = '';
+
 module.exports = {
   app,
   Notification,
@@ -260,7 +262,11 @@ module.exports = {
   desktopCapturer,
   dialog,
   shell,
-  clipboard: { readText: () => '', writeText: () => {}, writeBuffer: () => {} },
+  clipboard: {
+    readText: () => _clipboardText,
+    writeText: (t) => { _clipboardText = String(t ?? ''); },
+    writeBuffer: () => {},
+  },
   ipcMain: {
     handlers: new Map(),
     handle: (channel, fn) => module.exports.ipcMain.handlers.set(channel, async (event, payload) => {

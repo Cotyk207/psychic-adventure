@@ -887,3 +887,278 @@
   line-height: 1.55;
   user-select: text;
 }
+
+/* ── Блок рассуждений ИИ и управление уровнем ─────────────────────────── */
+.reasoning-box {
+  margin: 4px 0 11px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent-3) 32%, var(--border));
+  background: linear-gradient(145deg, color-mix(in srgb, var(--accent-3) 8%, var(--surface)), color-mix(in srgb, var(--bg0) 55%, transparent));
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.reasoning-box.streaming {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  box-shadow: 0 0 24px -16px var(--glow);
+}
+.reasoning-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 11px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 11.5px;
+}
+.reasoning-icon {
+  width: 21px;
+  height: 21px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+  color: var(--accent);
+}
+.reasoning-box.streaming .reasoning-icon {
+  animation: pulse 1.2s infinite;
+}
+.reasoning-title {
+  font-weight: 600;
+  color: var(--text);
+}
+.reasoning-stats {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-faint);
+  margin-left: auto;
+}
+.reasoning-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.reasoning-effort-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  border-radius: 99px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.msg-actions.always-visible {
+  opacity: 1;
+  flex-wrap: wrap;
+}
+.msg-action.reasoning-btn {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.msg-action.reasoning-btn.active {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.reasoning-head-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  color: var(--text-dim);
+  font-size: 11px;
+  transition: all 0.16s ease;
+}
+.reasoning-head-btn:hover,
+.reasoning-head-btn.has-items {
+  border-color: color-mix(in srgb, var(--accent) 42%, transparent);
+  color: var(--accent);
+}
+.reasoning-head-btn .count {
+  padding: 0 5px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+}
+
+.reasoning-card-full {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg0) 55%, var(--surface));
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.reasoning-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-2) 65%, transparent);
+}
+.reasoning-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.reasoning-card-text {
+  margin: 0;
+  padding: 12px 14px;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--text-dim);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 320px;
+  overflow-y: auto;
+  user-select: text;
+}
+
+/* ── Селектор глубины рассуждений в композере ─────────────────────────── */
+.effort-wrap {
+  position: relative;
+}
+.effort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg0) 45%, transparent);
+  color: var(--text-dim);
+  font-size: 11px;
+  transition: all 0.15s ease;
+}
+.effort-btn.enabled {
+  border-color: color-mix(in srgb, var(--accent) 42%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
+}
+.effort-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.effort-popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  width: 270px;
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid var(--border-strong);
+  background: color-mix(in srgb, var(--bg1) 96%, black);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55), 0 0 28px -14px var(--glow);
+  z-index: 60;
+}
+.effort-popover-title {
+  padding: 5px 9px 7px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.effort-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  transition: background 0.14s ease;
+}
+.effort-option:hover {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.effort-option.active {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+.effort-option-label {
+  font-size: 12px;
+  font-weight: 600;
+}
+.effort-option.active .effort-option-label {
+  color: var(--accent);
+}
+.effort-option-desc {
+  font-size: 10.5px;
+  color: var(--text-faint);
+  line-height: 1.35;
+  margin-top: 1px;
+}
+
+/* ── Слэш-команды и Drag & Drop композера ─────────────────────────────── */
+.composer.drag-over {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-2));
+  box-shadow: 0 0 36px -8px var(--glow);
+}
+.composer-tokens {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-faint);
+  padding: 0 4px;
+}
+.slash-menu {
+  margin-bottom: 8px;
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid var(--border-strong);
+  background: color-mix(in srgb, var(--bg1) 95%, black);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+}
+.slash-menu-head {
+  padding: 4px 10px 6px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.slash-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  text-align: left;
+}
+.slash-item:hover,
+.slash-item.active {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.slash-cmd {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--accent);
+  min-width: 82px;
+}
+.slash-desc {
+  font-size: 11.5px;
+  color: var(--text-dim);
+}
+

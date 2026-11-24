@@ -220,6 +220,7 @@ function registerIpc(deps) {
   handle('chats:delete', ({ id }) => chats.remove(id));
   handle('chats:rename', ({ id, title }) => chats.rename(id, title));
   handle('chats:pin', ({ id }) => chats.togglePin(id));
+  handle('chats:fork', ({ id, messageId }) => chats.fork(id, messageId));
   handle('chats:clear', () => chats.clear());
   handle('chats:export', async ({ id }) => {
     const chat = chats.get(id);
@@ -307,7 +308,7 @@ function registerIpc(deps) {
     if (result?.error) throw new Error(result.error);
     return { ok: true };
   });
-  handle('agent:regenerate', async ({ chatId }) => {
+  handle('agent:regenerate', async ({ chatId, reasoningEffort }) => {
     const chat = chats.get(chatId);
     if (!chat) throw new Error('Диалог не найден');
     const lastUser = [...chat.messages].reverse().find((m) => m.role === 'user');
@@ -318,6 +319,7 @@ function registerIpc(deps) {
       regenerate: true,
       providerId: chat.provider,
       model: chat.model,
+      reasoningEffort,
     });
     if (result?.error) throw new Error(result.error);
     return { ok: true };
@@ -545,7 +547,8 @@ function registerIpc(deps) {
     ],
   }));
 
-  handle('clipboard:write', ({ text }) => {
+  handle('clipboard:write', (payload) => {
+    const text = typeof payload === 'string' ? payload : payload?.text;
     clipboard.writeText(String(text ?? ''));
     return true;
   });

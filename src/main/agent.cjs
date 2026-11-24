@@ -6,6 +6,7 @@ const { chat: providerChat, supportsVision } = require('./providers/index.cjs');
 const { toolDefinitions, executeTool } = require('./tools/index.cjs');
 const { buildSystemPrompt } = require('./prompts.cjs');
 const { uid, truncate } = require('./lib/util.cjs');
+const { getModelMeta, resolveEffortForModel } = require('./lib/models.cjs');
 const { get } = require('./lib/paths.cjs');
 const { mimeOf } = require('./tools/files.cjs');
 
@@ -137,7 +138,7 @@ class Agent {
     return out;
   }
 
-  async send({ chatId, text, attachments = [], regenerate = false, providerId, model: modelOverride }) {
+  async send({ chatId, text, attachments = [], regenerate = false, providerId, model: modelOverride, reasoningEffort }) {
     const chat = this.chats.get(chatId);
     if (!chat) throw new Error('Диалог не найден');
     if (this.active.has(chatId)) throw new Error('Этот диалог уже занят — останови генерацию.');
@@ -147,6 +148,8 @@ class Agent {
     if (!provider) throw new Error('Не настроен ни один провайдер. Добавь модель в настройках.');
     const model = modelOverride || chat.model || config.chat.defaultModel;
     if (!model) throw new Error('Не выбрана модель');
+    const modelMeta = getModelMeta(provider.id, model);
+    const resolvedEffort = resolveEffortForModel(modelMeta, reasoningEffort || config.chat.reasoningEffort || 'medium');
 
     const controller = new AbortController();
     this.active.set(chatId, controller);
@@ -199,6 +202,7 @@ class Agent {
         provider: provider.id,
         providerName: provider.name,
         model,
+        reasoningEffort: resolvedEffort,
       });
 
       const tools = toolDefinitions();
@@ -219,6 +223,7 @@ class Agent {
             tools,
             temperature: config.chat.temperature,
             maxTokens: config.chat.maxTokens,
+            reasoningEffort: resolvedEffort,
             signal,
             stream: config.chat.stream,
             onUsage: (u) => { usage = { ...usage, ...u }; },
@@ -345,6 +350,7 @@ class Agent {
         role: 'assistant',
         content: finalContent,
         reasoning: finalReasoning,
+        reasoningEffort: resolvedEffort,
         createdAt: Date.now(),
         model,
         provider: provider.id,
@@ -373,6 +379,7 @@ class Agent {
         messageId,
         content: finalContent,
         reasoning: finalReasoning,
+        reasoningEffort: resolvedEffort,
         toolCalls: assistantMessage.toolCalls,
         usage,
         aborted,

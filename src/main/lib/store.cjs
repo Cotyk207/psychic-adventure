@@ -7,6 +7,7 @@ const { deepMerge, getPath, setPath, uid } = require('./util.cjs');
 const { get } = require('./paths.cjs');
 
 const PRESETS = require('../../shared/providers.json');
+const { REMOVED_PAID_BUILTIN_IDS, filterFreeModels } = require('./models.cjs');
 
 function createDefaultConfig() {
   const dirs = get();
@@ -53,6 +54,7 @@ function createDefaultConfig() {
       contextMessages: 24,
       stream: true,
       showReasoning: true,
+      reasoningEffort: 'medium',
       autoTitle: true,
       sendOnEnter: true,
       autoSpeak: false,
@@ -152,37 +154,50 @@ function syncPresets(config) {
   const result = [];
   for (const preset of PRESETS.providers) {
     const cur = byId.get(preset.id);
+    const defaultEnabled = preset.noKey === true || preset.local === true;
     if (!cur) {
       result.push({
         ...preset,
         apiKey: '',
-        enabled: preset.id === 'pollinations' || preset.local === true,
+        enabled: preset.custom ? false : defaultEnabled,
         presetVersion: PRESETS.version,
       });
       continue;
     }
-    // Refresh preset metadata (models, docs, colors) but keep user's key & flags.
-    const merged = { ...preset, ...cur, presetVersion: PRESETS.version };
-    if (Array.isArray(preset.models)) {
-      merged.models = Array.from(new Set([...(cur.models || []), ...preset.models]));
-    }
-    merged.tagline = cur.tagline ?? preset.tagline;
-    merged.docsUrl = cur.docsUrl ?? preset.docsUrl;
-    merged.keyUrl = cur.keyUrl ?? preset.keyUrl;
-    merged.keyHint = cur.keyHint ?? preset.keyHint;
-    merged.badge = cur.badge ?? preset.badge;
-    merged.color = cur.color ?? preset.color;
-    merged.free = cur.free ?? preset.free;
-    merged.type = cur.type ?? preset.type;
-    merged.modelFetch = cur.modelFetch ?? preset.modelFetch;
-    merged.builtin = preset.builtin;
+    const upgrading = (cur.presetVersion || 0) < PRESETS.version;
+    const baseModels = Array.from(new Set([...(preset.models || []), ...(cur.models || [])]));
+    const merged = {
+      ...preset,
+      ...cur,
+      models: filterFreeModels(preset.id, baseModels),
+      tagline: upgrading ? preset.tagline : (cur.tagline ?? preset.tagline),
+      docsUrl: preset.docsUrl ?? cur.docsUrl,
+      keyUrl: preset.keyUrl ?? cur.keyUrl,
+      keyHint: preset.keyHint ?? cur.keyHint,
+      badge: preset.badge,
+      color: cur.color ?? preset.color,
+      free: true,
+      noKey: preset.noKey,
+      accessType: preset.accessType,
+      type: cur.type ?? preset.type,
+      modelFetch: cur.modelFetch ?? preset.modelFetch,
+      builtin: preset.builtin,
+      presetVersion: PRESETS.version,
+    };
+    if (upgrading && preset.id === 'opencode') merged.enabled = true;
     result.push(merged);
   }
-  // keep user-created providers
+  // keep user-created custom providers, drop removed paid builtin presets
   for (const p of existing) {
-    if (!PRESETS.providers.some((x) => x.id === p.id)) result.push(p);
+    if (!PRESETS.providers.some((x) => x.id === p.id) && !REMOVED_PAID_BUILTIN_IDS.has(p.id)) {
+      result.push(p);
+    }
   }
   config.providers = result;
+  if (config.chat && !result.some((p) => p.id === config.chat.defaultProvider)) {
+    config.chat.defaultProvider = 'opencode';
+    config.chat.defaultModel = 'tidepool-alpha-free';
+  }
   return config;
 }
 

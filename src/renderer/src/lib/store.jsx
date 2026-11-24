@@ -80,6 +80,7 @@ function reducer(state, action) {
           messageId: action.messageId,
           provider: action.provider,
           model: action.model,
+          reasoningEffort: action.reasoningEffort || null,
           text: '',
           reasoning: '',
           toolCalls: [],
@@ -304,6 +305,23 @@ export function AppProvider({ children }) {
     }
   }, [refreshChats, toast]);
 
+  const forkChat = useCallback(async (messageId) => {
+    const chatId = stateRef.current.activeChatId;
+    if (!chatId) return null;
+    try {
+      const forked = await invoke('chats:fork', { id: chatId, messageId });
+      if (forked) {
+        await refreshChats();
+        dispatch({ type: 'SET_CHAT', chat: forked });
+        toast('Создана ветка диалога', 'success');
+      }
+      return forked;
+    } catch (err) {
+      toast(err.message, 'error');
+      return null;
+    }
+  }, [refreshChats, toast]);
+
   const openSettings = useCallback((tab = 'general') => {
     dispatch({ type: 'SET_SETTINGS_TAB', tab });
     dispatch({ type: 'SET_MODAL', modal: 'settings' });
@@ -328,6 +346,7 @@ export function AppProvider({ children }) {
         attachments,
         providerId: options.providerId,
         model: options.model,
+        reasoningEffort: options.reasoningEffort ?? current.config?.chat?.reasoningEffort,
       });
     } catch (err) {
       toast(err.message, 'error', 'Не удалось отправить сообщение');
@@ -347,7 +366,10 @@ export function AppProvider({ children }) {
     if (!chatId) return;
     dispatch({ type: 'TRIM_AFTER_LAST_USER' });
     try {
-      await invoke('agent:regenerate', { chatId });
+      await invoke('agent:regenerate', {
+        chatId,
+        reasoningEffort: stateRef.current.config?.chat?.reasoningEffort,
+      });
     } catch (err) {
       toast(err.message, 'error', 'Не удалось повторить генерацию');
     }
@@ -406,6 +428,17 @@ export function AppProvider({ children }) {
     const next = [item, ...prompts.filter((p) => p.text !== value)].slice(0, 50);
     await updateConfig('chat.prompts', next);
     return item;
+  }, [updateConfig]);
+
+  const togglePinModel = useCallback(async (providerId, model) => {
+    const key = `${providerId}::${model}`;
+    const pinned = Array.isArray(stateRef.current.config?.models?.pinned)
+      ? stateRef.current.config.models.pinned
+      : [];
+    const next = pinned.includes(key)
+      ? pinned.filter((k) => k !== key)
+      : [...pinned, key];
+    await updateConfig('models.pinned', next);
   }, [updateConfig]);
 
   const deletePrompt = useCallback(async (id) => {
@@ -477,6 +510,7 @@ export function AppProvider({ children }) {
           messageId: evt.messageId,
           provider: evt.provider,
           model: evt.model,
+          reasoningEffort: evt.reasoningEffort,
         });
       } else if (type === 'token') {
         dispatch({ type: 'STREAM_APPEND', chatId, field: 'text', delta: evt.delta });
@@ -659,6 +693,7 @@ export function AppProvider({ children }) {
     deleteChat,
     renameChat,
     pinChat,
+    forkChat,
     openSettings,
     closeModal,
     setView,
@@ -676,12 +711,13 @@ export function AppProvider({ children }) {
     player,
     savePrompt,
     deletePrompt,
+    togglePinModel,
   }), [
     state, toast, refreshConfig, refreshChats, refreshProviders, refreshSkills, refreshMemory,
-    refreshMedia, refreshTasks, refreshAll, loadChat, createChat, deleteChat, renameChat, pinChat,
+    refreshMedia, refreshTasks, refreshAll, loadChat, createChat, deleteChat, renameChat, pinChat, forkChat,
     openSettings, closeModal, setView, sendMessage, stopGeneration, regenerate,
     resolvePermission, resolveAsk, updateConfig, patchConfig, startListening,
-    stopListening, speak, stopSpeaking, savePrompt, deletePrompt,
+    stopListening, speak, stopSpeaking, savePrompt, deletePrompt, togglePinModel,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

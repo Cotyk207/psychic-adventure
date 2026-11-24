@@ -674,3 +674,51 @@ test('app:factoryReset сбрасывает чаты, память, задачи
   assert.equal(await call('config:getKey', { key: 'chat.temperature' }), 0.7);
 });
 
+test('agent:send передаёт reasoningEffort, сохраняет рассуждения ИИ и chats:fork создаёт ветку диалога', async () => {
+  const originalFetch = globalThis.fetch;
+  const capturedBodies = [];
+  globalThis.fetch = async (url, init = {}) => {
+    const u = String(url);
+    if (!u.endsWith('/chat/completions')) {
+      return new Response(JSON.stringify({ choices: [{ message: { content: 'Тест рассуждений' } }] }), { status: 200 });
+    }
+    const body = JSON.parse(init.body || '{}');
+    capturedBodies.push(body);
+    const stream = new ReadableStream({
+      start(c) {
+        c.enqueue(new TextEncoder().encode('data: {"choices":[{"delta":{"reasoning_content":"Анализирую гипотезы..."}}]}\n\n'));
+        c.enqueue(new TextEncoder().encode('data: {"choices":[{"delta":{"content":"Итоговый вывод готов."}}]}\n\n'));
+        c.enqueue(new TextEncoder().encode('data: [DONE]\n\n'));
+        c.close();
+      },
+    });
+    return new Response(stream, { status: 200 });
+  };
+
+  const chat = await call('chats:create', { provider: 'opencode', model: 'tidepool-alpha-free' });
+  try {
+    const res = await call('agent:send', {
+      chatId: chat.id,
+      text: 'Проверь сложную задачу',
+      reasoningEffort: 'max',
+    });
+    assert.equal(res.ok, true);
+    assert.equal(capturedBodies[0].reasoning_effort, 'max');
+    const saved = await call('chats:get', { id: chat.id });
+    const assistantMsg = saved.messages.find((m) => m.role === 'assistant');
+    assert.equal(assistantMsg.reasoning, 'Анализирую гипотезы...');
+    assert.equal(assistantMsg.reasoningEffort, 'max');
+    assert.equal(assistantMsg.content, 'Итоговый вывод готов.');
+
+    const forked = await call('chats:fork', { id: chat.id, messageId: assistantMsg.id });
+    assert.ok(forked && forked.id !== chat.id);
+    assert.equal(forked.messages.length, 2);
+    assert.equal(forked.messages[1].reasoning, 'Анализирую гипотезы...');
+    await call('chats:delete', { id: forked.id });
+  } finally {
+    globalThis.fetch = originalFetch;
+    await call('chats:delete', { id: chat.id });
+  }
+});
+
+
