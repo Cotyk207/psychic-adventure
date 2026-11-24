@@ -308,6 +308,18 @@ function initServices() {
   return services;
 }
 
+/**
+ * Останавливает фоновые сервисы: планировщик, терминалы, агенты.
+ * В Electron это вызывается из before-quit, в тестах — напрямую,
+ * чтобы процесс мог завершиться без --test-force-exit.
+ */
+function shutdownServices() {
+  try { services?.scheduler?.stop(); } catch {}
+  try { services?.terminal?.closeAll(); } catch {}
+  try { services?.agent?.stopAll(); } catch {}
+  try { globalShortcut.unregisterAll(); } catch {}
+}
+
 function applyAutoLaunch() {
   try {
     app.setLoginItemSettings({
@@ -420,8 +432,11 @@ if (!gotLock) {
 
   app.on('before-quit', () => {
     isQuiting = true;
-    try { services?.terminal?.closeAll(); } catch {}
-    try { services?.agent?.stopAll(); } catch {}
-    try { globalShortcut.unregisterAll(); } catch {}
+    shutdownServices();
   });
 }
+
+module.exports = {
+  shutdownServices,
+  getServices: () => services,
+};
