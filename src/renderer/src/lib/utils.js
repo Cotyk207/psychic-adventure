@@ -108,11 +108,58 @@ export function downloadText(text, filename, mime = 'text/plain') {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-export function copyToClipboard(text) {
+export async function copyToClipboard(text) {
+  const value = String(text ?? '');
+  try {
+    if (window.psychic?.invoke) {
+      await window.psychic.invoke('clipboard:write', { text: value });
+      return true;
+    }
+  } catch {}
   if (navigator.clipboard?.writeText) {
-    return navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+    return navigator.clipboard.writeText(value).then(() => true).catch(() => fallbackCopy(value));
   }
-  return Promise.resolve(fallbackCopy(text));
+  return fallbackCopy(value);
+}
+
+export async function readFromClipboard() {
+  try {
+    if (window.psychic?.invoke) {
+      const val = await window.psychic.invoke('clipboard:read');
+      if (typeof val === 'string') return val;
+    }
+  } catch {}
+  try {
+    if (navigator.clipboard?.readText) {
+      return await navigator.clipboard.readText();
+    }
+  } catch {}
+  return '';
+}
+
+export function setNativeInputValue(el, nextValue) {
+  if (!el) return;
+  const proto = el.tagName === 'TEXTAREA'
+    ? window.HTMLTextAreaElement?.prototype
+    : window.HTMLInputElement?.prototype;
+  const setter = proto && Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+  if (setter) setter.call(el, nextValue);
+  else el.value = nextValue;
+  el.dispatchEvent(new window.Event('input', { bubbles: true }));
+}
+
+export function insertIntoInput(el, insertText) {
+  if (!el) return;
+  const cur = String(el.value || '');
+  const start = typeof el.selectionStart === 'number' ? el.selectionStart : cur.length;
+  const end = typeof el.selectionEnd === 'number' ? el.selectionEnd : cur.length;
+  const next = cur.slice(0, start) + insertText + cur.slice(end);
+  setNativeInputValue(el, next);
+  try {
+    el.focus();
+    const pos = start + insertText.length;
+    el.setSelectionRange?.(pos, pos);
+  } catch {}
 }
 
 function fallbackCopy(text) {
@@ -124,6 +171,7 @@ function fallbackCopy(text) {
   ta.select();
   try { document.execCommand('copy'); } catch {}
   ta.remove();
+  return true;
 }
 
 export function pluralRu(n, one, few, many) {

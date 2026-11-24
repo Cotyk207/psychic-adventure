@@ -19,8 +19,10 @@ export default function ChatView() {
         role: 'assistant',
         content: streaming.text,
         reasoning: streaming.reasoning,
+        reasoningEffort: streaming.reasoningEffort,
         toolCalls: streaming.toolCalls,
         model: streaming.model,
+        provider: streaming.provider,
         streaming: true,
       }
     : null;

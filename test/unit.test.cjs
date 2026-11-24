@@ -874,4 +874,137 @@ test('упаковка: main, preload, иконки и extraResources сущес
   }
 });
 
+// ═══════════════════════════════════════════════════════════════════════════
+// 11. Бесплатный каталог провайдеров, OpenCode, <think> и уровни рассуждений
+// ═══════════════════════════════════════════════════════════════════════════
+
+test('каталог providers.json содержит только бесплатные провайдеры (без ключа и по бесплатному ключу)', () => {
+  const presets = require('../src/shared/providers.json');
+  const paidIds = new Set(['openai', 'anthropic', 'deepseek', 'xai', 'moonshot']);
+  assert.equal(presets.version >= 4, true);
+  for (const p of presets.providers) {
+    assert.equal(paidIds.has(p.id), false, `платный провайдер не должен быть в каталоге: ${p.id}`);
+    assert.equal(p.free, true, `провайдер ${p.id} должен иметь free=true`);
+  }
+  const opencode = presets.providers.find((p) => p.id === 'opencode');
+  const pollinations = presets.providers.find((p) => p.id === 'pollinations');
+  assert.ok(opencode && opencode.noKey === true && opencode.models.includes('tidepool-alpha-free'));
+  assert.ok(pollinations && pollinations.noKey === true);
+
+  const openrouter = presets.providers.find((p) => p.id === 'openrouter');
+  assert.ok(openrouter.models.length > 0);
+  for (const m of openrouter.models) {
+    assert.equal(m.endsWith(':free') || m === 'openrouter/free', true, `платная модель в openrouter: ${m}`);
+  }
+});
+
+test('models.cjs: корректно определяет возможности моделей и скрывает уровень рассуждений где он не поддерживается', () => {
+  const { getModelMeta, resolveEffortForModel, filterFreeModels } = require('../src/main/lib/models.cjs');
+
+  const tidepool = getModelMeta('opencode', 'tidepool-alpha-free');
+  assert.equal(tidepool.reasoning, true);
+  assert.deepEqual(tidepool.efforts, ['minimal', 'low', 'medium', 'high', 'xhigh', 'max']);
+  assert.equal(resolveEffortForModel('opencode', 'tidepool-alpha-free', 'max'), 'max');
+
+  const hy4 = getModelMeta('opencode', 'hy4-flash-free');
+  assert.deepEqual(hy4.efforts, ['none', 'high']);
+  assert.equal(resolveEffortForModel('opencode', 'hy4-flash-free', 'medium'), 'high');
+  assert.equal(resolveEffortForModel('opencode', 'hy4-flash-free', 'none'), 'none');
+
+  // Модель с авто-рассуждениями без переключателя (efforts: []) -> кнопка скрыта (null)
+  assert.equal(getModelMeta('opencode', 'iceman-free').reasoning, true);
+  assert.equal(resolveEffortForModel('opencode', 'iceman-free', 'high'), null);
+
+  // Обычная модель без рассуждений -> кнопка скрыта (null)
+  assert.equal(getModelMeta('pollinations', 'mistral').reasoning, false);
+  assert.equal(resolveEffortForModel('pollinations', 'mistral', 'medium'), null);
+
+  // Фильтрация платных моделей в смешанных провайдерах
+  assert.deepEqual(
+    filterFreeModels({ id: 'openrouter' }, ['openai/gpt-4o', 'qwen/qwen3-coder:free', 'openrouter/free']),
+    ['qwen/qwen3-coder:free', 'openrouter/free']
+  );
+  assert.deepEqual(
+    filterFreeModels({ id: 'together' }, ['meta-llama/Llama-3.3-70B-Instruct-Turbo-Free', 'meta-llama/Paid-70B']),
+    ['meta-llama/Llama-3.3-70B-Instruct-Turbo-Free']
+  );
+});
+
+test('openai.cjs: парсер <think> разделяет мысли и текст даже при разрезанных чанках + заголовки OpenCode', async () => {
+  const openaiAdapter = require('../src/main/providers/openai.cjs');
+  const parser = openaiAdapter.createThinkParser();
+  const out = [
+    ...parser.feed('<thi'),
+    ...parser.feed('nk>Шаг 1: проверим '),
+    ...parser.feed('условие</th'),
+    ...parser.feed('ink>Готовый ответ!'),
+    ...parser.flush(),
+  ];
+  const reasoning = out.filter((x) => x.type === 'reasoning').map((x) => x.text).join('');
+  const text = out.filter((x) => x.type === 'text').map((x) => x.text).join('');
+  assert.equal(reasoning, 'Шаг 1: проверим условие');
+  assert.equal(text, 'Готовый ответ!');
+
+  // Проверяем отправку Authorization: Bearer public + reasoning_effort + автоматический повтор при HTTP 400
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url, headers: init.headers, body: JSON.parse(init.body) });
+    if (calls.length === 1) {
+      return new Response('unsupported parameter: reasoning_effort', { status: 400 });
+    }
+    const stream = new ReadableStream({
+      start(c) {
+        c.enqueue(new TextEncoder().encode('data: {"choices":[{"delta":{"content":"<think>Думаю</think>Ок"}}]}\n\n'));
+        c.enqueue(new TextEncoder().encode('data: [DONE]\n\n'));
+        c.close();
+      },
+    });
+    return new Response(stream, { status: 200 });
+  };
+
+  try {
+    const events = [];
+    for await (const ev of openaiAdapter.streamOpenAI({
+      provider: { id: 'opencode', name: 'OpenCode Console', type: 'openai', baseUrl: 'https://opencode.ai/inference/openai/v1', noKey: true, apiKey: '' },
+      model: 'tidepool-alpha-free',
+      messages: [{ role: 'user', content: 'Привет' }],
+      reasoningEffort: 'max',
+    })) {
+      events.push(ev);
+    }
+    assert.equal(calls.length, 2);
+    assert.equal(calls[0].headers.Authorization, 'Bearer public');
+    assert.match(calls[0].headers['User-Agent'], /^opencode\//);
+    assert.equal(calls[0].body.reasoning_effort, 'max');
+    assert.equal(calls[1].body.reasoning_effort, undefined);
+    assert.equal(events.filter((e) => e.type === 'reasoning').map((e) => e.text).join(''), 'Думаю');
+    assert.equal(events.filter((e) => e.type === 'text').map((e) => e.text).join(''), 'Ок');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('store: syncPresets очищает удалённые платные встроенные провайдеры при миграции на v4', () => {
+  const storeMod = require('../src/main/lib/store.cjs');
+  const migrated = storeMod.syncPresets({
+    presetVersion: 3,
+    chat: { defaultProvider: 'openai', defaultModel: 'gpt-4o' },
+    providers: [
+      { id: 'openai', name: 'OpenAI', type: 'openai', baseUrl: 'https://api.openai.com/v1', apiKey: '', models: ['gpt-4o'] },
+      { id: 'openrouter', name: 'OpenRouter', type: 'openai', baseUrl: 'https://openrouter.ai/api/v1', apiKey: 'sk-or-test', models: ['openai/gpt-4o', 'qwen/qwen3-coder:free'] },
+      { id: 'my-local-proxy', name: 'My Free Proxy', type: 'openai', baseUrl: 'http://localhost:8080/v1', apiKey: '', models: ['llama'], custom: true },
+    ],
+  });
+  const list = migrated.providers;
+  assert.equal(list.some((p) => p.id === 'openai'), false, 'платный openai без ключа должен быть удалён');
+  assert.equal(list.some((p) => p.id === 'opencode' && p.enabled === true), true, 'бесплатный opencode должен быть включён');
+  assert.equal(list.some((p) => p.id === 'my-local-proxy'), true, 'пользовательский провайдер сохранён');
+  const or = list.find((p) => p.id === 'openrouter');
+  assert.equal(or.models.includes('openai/gpt-4o'), false, 'платная модель должна быть очищена из openrouter');
+  assert.equal(or.models.includes('qwen/qwen3-coder:free'), true);
+  assert.equal(migrated.chat.defaultProvider, 'opencode');
+});
+
+
 

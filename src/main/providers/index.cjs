@@ -1,6 +1,7 @@
 'use strict';
 
 const { normalizeBaseUrl, withTimeout } = require('../lib/util.cjs');
+const { getModelMeta } = require('../lib/models.cjs');
 const openai = require('./openai.cjs');
 const anthropic = require('./anthropic.cjs');
 const google = require('./google.cjs');
@@ -14,6 +15,7 @@ const VISION_PATTERNS = [
 
 function supportsVision(model) {
   if (!model) return false;
+  if (getModelMeta(null, model).vision) return true;
   return VISION_PATTERNS.some((re) => re.test(String(model)));
 }
 
@@ -35,6 +37,7 @@ async function* chat(provider, model, messages, options = {}) {
     tools: options.tools,
     temperature: options.temperature,
     maxTokens: options.maxTokens,
+    reasoningEffort: options.reasoningEffort,
     signal,
     onUsage,
   };

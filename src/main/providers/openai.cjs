@@ -1,6 +1,7 @@
 'use strict';
 
-const { joinUrl, normalizeBaseUrl, safeJson, truncate } = require('../lib/util.cjs');
+const { joinUrl, safeJson, truncate } = require('../lib/util.cjs');
+const { getModelMeta, getEffortSpec, filterFreeModels } = require('../lib/models.cjs');
 const { sseJson, httpError } = require('./sse.cjs');
 
 function buildHeaders(provider) {
@@ -8,7 +9,12 @@ function buildHeaders(provider) {
     'Content-Type': 'application/json',
     Accept: 'application/json',
   };
-  if (provider.apiKey) h.Authorization = `Bearer ${provider.apiKey}`;
+  if (provider.id === 'opencode') {
+    h.Authorization = `Bearer ${provider.apiKey || 'public'}`;
+    h['User-Agent'] = 'opencode/stable/1.0.0/opencode';
+  } else if (provider.apiKey) {
+    h.Authorization = `Bearer ${provider.apiKey}`;
+  }
   if (provider.id === 'openrouter') {
     h['HTTP-Referer'] = 'https://github.com/Cotyk207/psychic-adventure';
     h['X-Title'] = 'PSYCHIC';
@@ -96,7 +102,121 @@ function isToolsUnsupportedError(err) {
   return /tool|function.?call|functions?\s+are\s+not|does\s+not\s+support/i.test(String(err?.message || ''));
 }
 
-async function* streamOpenAI({ provider, model, messages, tools, temperature, maxTokens, signal, onUsage }) {
+function isReasoningParamError(err) {
+  const status = Number(err?.status) || 0;
+  if (status !== 400 && status !== 422) return false;
+  return /reasoning_effort|thinking|unrecognized|unknown\s+field|extra_forbidden|invalid_request|not\s+supported/i.test(String(err?.message || ''));
+}
+
+function applyReasoningEffort(body, providerId, model, reasoningEffort) {
+  if (!reasoningEffort) return false;
+  const spec = getEffortSpec(reasoningEffort);
+  if (!spec) return false;
+  const meta = getModelMeta(providerId, model);
+  if (!meta.efforts.length) return false;
+  if (reasoningEffort === 'none' && meta.toggle) {
+    body.thinking = { type: 'disabled' };
+    return true;
+  }
+  body.reasoning_effort = spec.openaiEffort;
+  return true;
+}
+
+/**
+ * Потоковый парсер тегов <think>...</think> (DeepSeek R1, QwQ, Qwen3 и др.),
+ * корректно обрабатывающий разрыв открывающего/закрывающего тега между чанками.
+ */
+function createThinkParser() {
+  let inThink = false;
+  let buffer = '';
+
+  const OPEN = '<think>';
+  const CLOSE = '</think>';
+
+  function feed(chunk) {
+    buffer += chunk;
+    const out = [];
+    while (buffer.length > 0) {
+      if (!inThink) {
+        const idx = buffer.indexOf(OPEN);
+        if (idx >= 0) {
+          if (idx > 0) out.push({ type: 'text', text: buffer.slice(0, idx) });
+          buffer = buffer.slice(idx + OPEN.length);
+          inThink = true;
+          continue;
+        }
+        // проверяем, не обрывается ли хвост на префиксе '<think>'
+        let keep = 0;
+        for (let len = Math.min(OPEN.length - 1, buffer.length); len > 0; len--) {
+          if (OPEN.startsWith(buffer.slice(-len))) {
+            keep = len;
+            break;
+          }
+        }
+        const emitLen = buffer.length - keep;
+        if (emitLen > 0) {
+          out.push({ type: 'text', text: buffer.slice(0, emitLen) });
+          buffer = buffer.slice(emitLen);
+        }
+        break;
+      } else {
+        const idx = buffer.indexOf(CLOSE);
+        if (idx >= 0) {
+          if (idx > 0) out.push({ type: 'reasoning', text: buffer.slice(0, idx) });
+          buffer = buffer.slice(idx + CLOSE.length).replace(/^\r?\n/, '');
+          inThink = false;
+          continue;
+        }
+        let keep = 0;
+        for (let len = Math.min(CLOSE.length - 1, buffer.length); len > 0; len--) {
+          if (CLOSE.startsWith(buffer.slice(-len))) {
+            keep = len;
+            break;
+          }
+        }
+        const emitLen = buffer.length - keep;
+        if (emitLen > 0) {
+          out.push({ type: 'reasoning', text: buffer.slice(0, emitLen) });
+          buffer = buffer.slice(emitLen);
+        }
+        break;
+      }
+    }
+    return out;
+  }
+
+  function flush() {
+    if (!buffer) return [];
+    const item = { type: inThink ? 'reasoning' : 'text', text: buffer };
+    buffer = '';
+    return [item];
+  }
+
+  return { feed, flush };
+}
+
+async function sendCompletionWithFallback(provider, body, hasTools, hasReasoning, signal) {
+  try {
+    return await request(provider, '/chat/completions', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }, signal);
+  } catch (err) {
+    if (hasReasoning && isReasoningParamError(err)) {
+      delete body.reasoning_effort;
+      delete body.thinking;
+      return sendCompletionWithFallback(provider, body, hasTools, false, signal);
+    }
+    if (hasTools && isToolsUnsupportedError(err)) {
+      delete body.tools;
+      delete body.tool_choice;
+      return sendCompletionWithFallback(provider, body, false, hasReasoning, signal);
+    }
+    throw err;
+  }
+}
+
+async function* streamOpenAI({ provider, model, messages, tools, temperature, maxTokens, reasoningEffort, signal, onUsage }) {
   const body = {
     model,
     messages: toOpenAIMessages(messages),
@@ -109,26 +229,11 @@ async function* streamOpenAI({ provider, model, messages, tools, temperature, ma
     body.tools = openaiTools;
     body.tool_choice = 'auto';
   }
-  let res;
-  try {
-    res = await request(provider, '/chat/completions', {
-      method: 'POST',
-      body: JSON.stringify(body),
-    }, signal);
-  } catch (err) {
-    if (openaiTools && isToolsUnsupportedError(err)) {
-      delete body.tools;
-      delete body.tool_choice;
-      res = await request(provider, '/chat/completions', {
-        method: 'POST',
-        body: JSON.stringify(body),
-      }, signal);
-    } else {
-      throw err;
-    }
-  }
+  const hasReasoning = applyReasoningEffort(body, provider.id, model, reasoningEffort);
+  const res = await sendCompletionWithFallback(provider, body, Boolean(openaiTools), hasReasoning, signal);
 
   const toolAcc = new Map();
+  const thinkParser = createThinkParser();
   let usage = null;
   for await (const json of sseJson(res.body)) {
     if (json.usage) {
@@ -140,7 +245,11 @@ async function* streamOpenAI({ provider, model, messages, tools, temperature, ma
     const delta = choice.delta || {};
     if (delta.reasoning_content) yield { type: 'reasoning', text: delta.reasoning_content };
     if (delta.reasoning) yield { type: 'reasoning', text: delta.reasoning };
-    if (delta.content) yield { type: 'text', text: delta.content };
+    if (delta.content) {
+      for (const ev of thinkParser.feed(delta.content)) {
+        if (ev.text) yield ev;
+      }
+    }
     if (Array.isArray(delta.tool_calls)) {
       for (const tc of delta.tool_calls) {
         const key = tc.index ?? 0;
@@ -153,6 +262,9 @@ async function* streamOpenAI({ provider, model, messages, tools, temperature, ma
     }
     if (choice.finish_reason === 'length') yield { type: 'notice', text: 'Достигнут лимит длины ответа.' };
   }
+  for (const ev of thinkParser.flush()) {
+    if (ev.text) yield ev;
+  }
   for (const acc of toolAcc.values()) {
     if (!acc.name) continue;
     yield { type: 'tool_call', id: acc.id, name: acc.name, arguments: safeJson(acc.args, {}) };
@@ -160,7 +272,7 @@ async function* streamOpenAI({ provider, model, messages, tools, temperature, ma
   if (usage) yield { type: 'usage', usage };
 }
 
-async function chatOpenAINonStream({ provider, model, messages, tools, temperature, maxTokens, signal }) {
+async function chatOpenAINonStream({ provider, model, messages, tools, temperature, maxTokens, reasoningEffort, signal }) {
   const body = {
     model,
     messages: toOpenAIMessages(messages),
@@ -173,29 +285,19 @@ async function chatOpenAINonStream({ provider, model, messages, tools, temperatu
     body.tools = openaiTools;
     body.tool_choice = 'auto';
   }
-  let res;
-  try {
-    res = await request(provider, '/chat/completions', {
-      method: 'POST',
-      body: JSON.stringify(body),
-    }, signal);
-  } catch (err) {
-    if (openaiTools && isToolsUnsupportedError(err)) {
-      delete body.tools;
-      delete body.tool_choice;
-      res = await request(provider, '/chat/completions', {
-        method: 'POST',
-        body: JSON.stringify(body),
-      }, signal);
-    } else {
-      throw err;
-    }
-  }
+  const hasReasoning = applyReasoningEffort(body, provider.id, model, reasoningEffort);
+  const res = await sendCompletionWithFallback(provider, body, Boolean(openaiTools), hasReasoning, signal);
   const json = await res.json();
   const msg = json.choices?.[0]?.message || {};
   const events = [];
   if (msg.reasoning_content) events.push({ type: 'reasoning', text: msg.reasoning_content });
-  if (msg.content) events.push({ type: 'text', text: msg.content });
+  if (msg.reasoning) events.push({ type: 'reasoning', text: msg.reasoning });
+  if (msg.content) {
+    const thinkParser = createThinkParser();
+    for (const ev of [...thinkParser.feed(msg.content), ...thinkParser.flush()]) {
+      if (ev.text) events.push(ev);
+    }
+  }
   for (const tc of msg.tool_calls || []) {
     events.push({
       type: 'tool_call',
@@ -210,7 +312,21 @@ async function chatOpenAINonStream({ provider, model, messages, tools, temperatu
 
 async function listModels(provider, signal) {
   if (!provider.baseUrl) throw new Error('Не указан Base URL');
-  const res = await request(provider, '/models', { method: 'GET' }, signal);
+  let res;
+  try {
+    res = await request(provider, '/models', { method: 'GET' }, signal);
+  } catch (err) {
+    if (provider.id === 'opencode') {
+      const alt = await fetch('https://opencode.ai/inference/v1/models', {
+        headers: buildHeaders(provider),
+        signal,
+      });
+      if (!alt.ok) throw err;
+      res = alt;
+    } else {
+      throw err;
+    }
+  }
   const json = await res.json();
   const list = Array.isArray(json)
     ? json
@@ -224,7 +340,7 @@ async function listModels(provider, signal) {
     const id = item.id || item.name || item.model;
     if (typeof id === 'string' && id) models.push(id);
   }
-  return Array.from(new Set(models));
+  return filterFreeModels(provider.id, Array.from(new Set(models)));
 }
 
 async function listAnthropicModels(provider, signal) {
@@ -246,4 +362,5 @@ module.exports = {
   buildHeaders,
   request,
   toOpenAIMessages,
+  createThinkParser,
 };

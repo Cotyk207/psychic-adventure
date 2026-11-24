@@ -1,0 +1,212 @@
+{
+  "efforts": {
+    "none": {
+      "label": "Выкл",
+      "short": "Выкл",
+      "desc": "Без рассуждений — мгновенный прямой ответ",
+      "openaiEffort": "none",
+      "geminiBudget": 0,
+      "anthropicBudget": 0
+    },
+    "minimal": {
+      "label": "Минимум",
+      "short": "Мин",
+      "desc": "Очень быстрая прикидка перед ответом",
+      "openaiEffort": "minimal",
+      "geminiBudget": 512,
+      "anthropicBudget": 1024
+    },
+    "low": {
+      "label": "Низко",
+      "short": "Низко",
+      "desc": "Лёгкое рассуждение для простых вопросов",
+      "openaiEffort": "low",
+      "geminiBudget": 1536,
+      "anthropicBudget": 2048
+    },
+    "medium": {
+      "label": "Средне",
+      "short": "Средне",
+      "desc": "Оптимальный баланс скорости и глубины анализа",
+      "openaiEffort": "medium",
+      "geminiBudget": 6144,
+      "anthropicBudget": 6144
+    },
+    "high": {
+      "label": "Высоко",
+      "short": "Высоко",
+      "desc": "Глубокий многошаговый разбор сложных задач",
+      "openaiEffort": "high",
+      "geminiBudget": 16384,
+      "anthropicBudget": 16000
+    },
+    "xhigh": {
+      "label": "Оч. высоко",
+      "short": "Оч. выс.",
+      "desc": "Повышенный бюджет размышлений для архитектуры и математики",
+      "openaiEffort": "xhigh",
+      "geminiBudget": 20480,
+      "anthropicBudget": 24000
+    },
+    "max": {
+      "label": "Максимум",
+      "short": "Макс",
+      "desc": "Максимально глубокое рассуждение нейросети",
+      "openaiEffort": "max",
+      "geminiBudget": 24576,
+      "anthropicBudget": 32000
+    }
+  },
+  "exact": {
+    "tidepool-alpha-free": {
+      "name": "Tidepool Alpha Free",
+      "context": "1M",
+      "reasoning": true,
+      "vision": false,
+      "efforts": ["minimal", "low", "medium", "high", "xhigh", "max"]
+    },
+    "deepseek-v4.1-flash-free": {
+      "name": "DeepSeek V4.1 Flash Free",
+      "context": "200k",
+      "reasoning": true,
+      "toggle": true,
+      "vision": false,
+      "efforts": ["none", "low", "high", "max"]
+    },
+    "hy4-flash-free": {
+      "name": "Hy4 flash Free",
+      "context": "1M",
+      "reasoning": true,
+      "vision": true,
+      "efforts": ["none", "high"]
+    },
+    "iceman-free": {
+      "name": "Iceman Free",
+      "context": "262k",
+      "reasoning": true,
+      "vision": false,
+      "efforts": []
+    },
+    "nemotron-3.5-super-vl-free": {
+      "name": "Nemotron 3.5 Super VL Free",
+      "context": "256k",
+      "reasoning": true,
+      "vision": true,
+      "efforts": ["none", "minimal", "low", "medium", "high", "xhigh"]
+    },
+    "beam-free": {
+      "name": "Beam Free",
+      "context": "256k",
+      "reasoning": true,
+      "vision": false,
+      "efforts": ["low", "medium", "high", "xhigh", "max"]
+    },
+    "flint-40b-free": {
+      "name": "Flint 40B Free",
+      "context": "128k",
+      "reasoning": true,
+      "vision": false,
+      "efforts": ["low", "medium", "high", "xhigh", "max"]
+    },
+    "mimo-v2.6-flash-free": {
+      "name": "MiMo-V2.6-Flash Free",
+      "context": "200k",
+      "reasoning": true,
+      "vision": false,
+      "efforts": []
+    },
+    "nemotron-3.5-lightning-free": {
+      "name": "Nemotron 3.5 Lightning Free",
+      "context": "128k",
+      "reasoning": true,
+      "vision": false,
+      "efforts": []
+    },
+    "big-pickle": {
+      "name": "Big Pickle",
+      "context": "200k",
+      "reasoning": true,
+      "vision": false,
+      "efforts": []
+    },
+    "openai": {
+      "name": "GPT-4o Mini (Pollinations)",
+      "context": "128k",
+      "reasoning": false,
+      "vision": true,
+      "efforts": []
+    },
+    "openai-large": {
+      "name": "GPT-4.1 (Pollinations)",
+      "context": "128k",
+      "reasoning": false,
+      "vision": true,
+      "efforts": []
+    },
+    "openai-reasoning": {
+      "name": "OpenAI o4-mini Reasoning",
+      "context": "200k",
+      "reasoning": true,
+      "vision": true,
+      "efforts": ["low", "medium", "high"]
+    },
+    "deepseek-reasoning": {
+      "name": "DeepSeek R1 Reasoning",
+      "context": "128k",
+      "reasoning": true,
+      "vision": false,
+      "efforts": ["low", "medium", "high"]
+    },
+    "qwen-coder": {
+      "name": "Qwen 2.5 Coder 32B",
+      "context": "128k",
+      "reasoning": false,
+      "vision": false,
+      "efforts": []
+    },
+    "gemini-2.5-flash": {
+      "name": "Gemini 2.5 Flash",
+      "context": "1M",
+      "reasoning": true,
+      "toggle": true,
+      "vision": true,
+      "efforts": ["none", "low", "medium", "high", "max"]
+    },
+    "gemini-2.5-pro": {
+      "name": "Gemini 2.5 Pro",
+      "context": "1M",
+      "reasoning": true,
+      "vision": true,
+      "efforts": ["low", "medium", "high", "max"]
+    },
+    "gemini-2.0-flash": {
+      "name": "Gemini 2.0 Flash",
+      "context": "1M",
+      "reasoning": false,
+      "vision": true,
+      "efforts": []
+    },
+    "gemini-2.0-flash-thinking-exp": {
+      "name": "Gemini 2.0 Flash Thinking",
+      "context": "1M",
+      "reasoning": true,
+      "vision": true,
+      "efforts": ["low", "medium", "high"]
+    },
+    "glm-4.5-flash": {
+      "name": "GLM-4.5 Flash",
+      "context": "128k",
+      "reasoning": true,
+      "toggle": true,
+      "vision": false,
+      "efforts": ["none", "medium", "high"]
+    },
+    "glm-4-flash": {
+      "name": "GLM-4 Flash",
+      "context": "128k",
+      "reasoning": false,
+      "vision": false,
+      "efforts": []
+    }
+  }
+}

@@ -96,10 +96,12 @@ globalThis.fetch = async (url, init = {}) => {
   const notePath = path.join(info.paths.workspace, 'e2e-note.txt');
   const chunks = agentTurn === 1
     ? [
+        'data: {"choices":[{"delta":{"reasoning_content":"Шаг 1: проверяю путь к рабочей папке и готовлю запись файла."}}]}\n\n',
         `data: ${JSON.stringify({ choices: [{ delta: { tool_calls: [{ index: 0, id: 'tc-e2e', function: { name: 'write_file', arguments: JSON.stringify({ path: notePath, content: 'Привет из E2E!' }) } }] } }] })}\n\n`,
         'data: [DONE]\n\n',
       ]
     : [
+        'data: {"choices":[{"delta":{"reasoning_content":"Шаг 2: файл записан, формирую ответ пользователю."}}]}\n\n',
         'data: {"choices":[{"delta":{"content":"Заметка успешно записана в рабочую папку!"}}]}\n\n',
         'data: [DONE]\n\n',
       ];
@@ -182,21 +184,81 @@ clickButton('Обновить');
 await wait(250);
 check('e2e: music refresh keeps track list', html().includes('synthwave-demo'));
 
-// Переключаемся обратно в Диалоги и отправляем реальное сообщение агенту
+// Переключаемся обратно в Диалоги и проверяем:
+// 1) Только бесплатные модели (OpenCode Console + Pollinations без ключа, платных нет)
+// 2) Переключение модели и появление/скрытие кнопки уровня рассуждений
+// 3) Контекстное меню по правой кнопке мыши (Копировать / Вставить)
+// 4) Отправку сообщения, просмотр рассуждений ИИ в сообщении и в отдельном окне
 clickButton('Новый диалог');
 await wait(300);
+
+// Открываем селектор моделей и проверяем бесплатный каталог в стиле OpenCode Console
+const modelPill = document.querySelector('.model-pill');
+if (modelPill) modelPill.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await wait(250);
+check(
+  'e2e: free-only model picker shows OpenCode & hides paid providers',
+  html().includes('OpenCode Console') &&
+    html().includes('Tidepool Alpha Free') &&
+    html().includes('бесплатно · без ключа') &&
+    !html().includes('Anthropic Claude') &&
+    !html().includes('xAI Grok')
+);
+
+// Выбираем обычную модель mistral без рассуждений -> кнопка уровня рассуждений НЕ должна отображаться
+const mistralItem = [...document.querySelectorAll('.picker-model-item')].find((el) => (el.textContent || '').includes('Mistral Small'));
+if (mistralItem) mistralItem.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await wait(250);
+check('e2e: reasoning effort button hidden for non-reasoning model', !document.querySelector('.effort-btn'));
+
+// Снова открываем селектор моделей и выбираем Tidepool Alpha Free (поддерживает 6 уровней рассуждений)
+const modelPill2 = document.querySelector('.model-pill');
+if (modelPill2) modelPill2.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await wait(250);
+const tidepoolItem = [...document.querySelectorAll('.picker-model-item')].find((el) => (el.textContent || '').includes('Tidepool Alpha Free'));
+if (tidepoolItem) tidepoolItem.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await wait(250);
+
+const effortBtn = document.querySelector('.effort-btn');
+check('e2e: reasoning effort button shown for reasoning model', Boolean(effortBtn));
+if (effortBtn) {
+  effortBtn.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await wait(150);
+  clickButton('Максимум');
+  await wait(200);
+}
+const cfgEffort = await electron.ipcRenderer.invoke('config:get');
+check('e2e: reasoning effort saved to config (max)', cfgEffort.chat.reasoningEffort === 'max');
+
+// Проверяем контекстное меню по правой кнопке мыши (Вставить в поле ввода)
+await electron.ipcRenderer.invoke('clipboard:write', { text: 'Создай заметку в рабочей папке' });
 const ta = document.querySelector('.composer-input');
 if (ta) {
-  const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
-  setter.call(ta, 'Создай заметку в рабочей папке');
-  ta.dispatchEvent(new window.Event('input', { bubbles: true }));
-  await wait(100);
+  ta.focus();
+  ta.dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 120, clientY: 200 }));
+  await wait(180);
+  check('e2e: right-click context menu opened with Paste & Copy', Boolean(document.querySelector('.ctx-menu')) && html().includes('Вставить'));
+  clickButton('Вставить');
+  await wait(180);
+  check('e2e: right-click Paste inserted clipboard text into composer', ta.value === 'Создай заметку в рабочей папке');
   ta.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
 }
-await wait(700);
+await wait(750);
 const writtenNote = path.join(bootInfo.paths.workspace, 'e2e-note.txt');
 check('e2e: agent executed write_file tool', fs.existsSync(writtenNote) && fs.readFileSync(writtenNote, 'utf8') === 'Привет из E2E!');
 check('e2e: assistant reply rendered in chat', html().includes('Заметка успешно записана'));
+check(
+  'e2e: AI reasoning block and toggle button rendered on message',
+  html().includes('Рассуждения ИИ') && html().includes('Шаг 1: проверяю путь') && html().includes('Скрыть рассуждения')
+);
+
+// Открываем модальное окно рассуждений через кнопку «Рассуждения» в верхней панели
+const reasoningHeadBtn = document.querySelector('.reasoning-head-btn');
+if (reasoningHeadBtn) reasoningHeadBtn.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await wait(220);
+check('e2e: reasoning viewer modal opened', html().includes('Ход рассуждений ИИ в диалоге') && html().includes('Уровень: Максимум'));
+window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+await wait(150);
 
 // Открываем настройки, проверяем переключение темы (два подряд updateConfig без потери первого!) и экспорт/импорт
 window.dispatchEvent(new window.KeyboardEvent('keydown', { key: ',', ctrlKey: true, bubbles: true }));

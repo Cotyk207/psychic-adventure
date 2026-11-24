@@ -108,6 +108,28 @@ class ChatsService {
   export(id) {
     return this.get(id);
   }
+
+  fork(id, messageId) {
+    const src = this.get(id);
+    if (!src) return null;
+    const now = Date.now();
+    const msgs = Array.isArray(src.messages) ? src.messages : [];
+    const idx = messageId ? msgs.findIndex((m) => m.id === messageId) : -1;
+    const slice = idx >= 0 ? msgs.slice(0, idx + 1) : msgs.slice();
+    const chat = {
+      id: uid(12),
+      title: truncate(`${src.title || 'Диалог'} (ветка)`, 80),
+      createdAt: now,
+      updatedAt: now,
+      messages: JSON.parse(JSON.stringify(slice)),
+      provider: src.provider || null,
+      model: src.model || null,
+      systemPrompt: src.systemPrompt || '',
+      pinned: false,
+    };
+    this.save(chat);
+    return chat;
+  }
 }
 
 module.exports = { ChatsService };

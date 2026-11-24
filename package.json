@@ -1,6 +1,6 @@
 {
   "name": "psychic",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "PSYCHIC — киберпанк ИИ-ассистент для Windows с полным доступом к ПК",
   "main": "src/main/index.cjs",
   "author": "PSYCHIC",

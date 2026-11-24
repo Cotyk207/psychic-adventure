@@ -1,6 +1,7 @@
 'use strict';
 
 const { normalizeBaseUrl, safeJson, uid } = require('../lib/util.cjs');
+const { getModelMeta, getEffortSpec } = require('../lib/models.cjs');
 const { sseJson, httpError } = require('./sse.cjs');
 const { buildHeaders } = require('./openai.cjs');
 
@@ -66,7 +67,7 @@ function toGoogleContents(messages) {
   return contents;
 }
 
-async function* streamGoogle({ provider, model, messages, tools, temperature, maxTokens, signal, onUsage }) {
+async function* streamGoogle({ provider, model, messages, tools, temperature, maxTokens, reasoningEffort, signal, onUsage }) {
   const system = messages
     .filter((m) => m.role === 'system')
     .map((m) => m.content)
@@ -80,6 +81,14 @@ async function* streamGoogle({ provider, model, messages, tools, temperature, ma
       topP: 0.95,
     },
   };
+  const meta = getModelMeta(provider.id, model);
+  const spec = reasoningEffort ? getEffortSpec(reasoningEffort) : null;
+  if (spec && meta.efforts.length) {
+    body.generationConfig.thinkingConfig = {
+      includeThoughts: reasoningEffort !== 'none',
+      thinkingBudget: spec.geminiBudget,
+    };
+  }
   if (system) body.systemInstruction = { parts: [{ text: system }] };
   if (tools?.length) {
     body.tools = [{
@@ -96,7 +105,11 @@ async function* streamGoogle({ provider, model, messages, tools, temperature, ma
   delete headers.Authorization;
   if (provider.apiKey) headers['x-goog-api-key'] = provider.apiKey;
 
-  const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal });
+  let res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal });
+  if (!res.ok && body.generationConfig.thinkingConfig && (res.status === 400 || res.status === 422)) {
+    delete body.generationConfig.thinkingConfig;
+    res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal });
+  }
   if (!res.ok) throw httpError(res.status, await res.text().catch(() => ''), provider.name);
 
   let usage = null;

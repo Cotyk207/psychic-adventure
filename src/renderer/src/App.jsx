@@ -29,6 +29,9 @@ import MediaRenderer from './components/MediaRenderer';
 import ErrorBoundary from './components/ErrorBoundary';
 import Dashboard from './components/Dashboard';
 import ShortcutHelp from './components/ShortcutHelp';
+import ContextMenu from './components/ContextMenu';
+import ReasoningModal from './components/ReasoningModal';
+import { getModelMeta } from './lib/models';
 
 const VIEW_META = {
   dashboard: { title: 'Обзор', icon: 'zap' },
@@ -49,6 +52,9 @@ function MainHead() {
   const meta = VIEW_META[state.view] || VIEW_META.chat;
   const provider = (state.providers || []).find((p) => p.id === (state.chat?.provider || state.config?.chat?.defaultProvider));
   const model = state.chat?.model || state.config?.chat?.defaultModel;
+  const modelMeta = getModelMeta(provider?.id, model);
+  const reasoningCount = (state.messages || []).filter((m) => m.role === 'assistant' && m.reasoning).length
+    + (state.streaming?.chatId === state.activeChatId && state.streaming?.reasoning ? 1 : 0);
 
   return (
     <div className="main-head">
@@ -63,11 +69,22 @@ function MainHead() {
 
       <div className="main-head-actions">
         {state.view === 'chat' && (
-          <button className="model-pill" onClick={() => dispatch({ type: 'SET_MODAL', modal: 'modelPicker' })}>
-            <span className="dot" />
-            <span>{model || 'выбрать модель'}</span>
-            {provider && <span style={{ color: 'var(--text-faint)' }}>· {provider.name}</span>}
-          </button>
+          <>
+            <button
+              className={cn('reasoning-head-btn', reasoningCount > 0 && 'has-items')}
+              onClick={() => dispatch({ type: 'SET_MODAL', modal: 'reasoning' })}
+              title="Посмотреть ход рассуждений ИИ в этом диалоге"
+            >
+              <Icon name="brain" size={14} />
+              <span>Рассуждения</span>
+              {reasoningCount > 0 && <span className="count">{reasoningCount}</span>}
+            </button>
+            <button className="model-pill" onClick={() => dispatch({ type: 'SET_MODAL', modal: 'modelPicker' })}>
+              <span className="dot" />
+              <span>{modelMeta.name || model || 'выбрать модель'}</span>
+              {provider && <span style={{ color: 'var(--text-faint)' }}>· {provider.name}</span>}
+            </button>
+          </>
         )}
         <button className="icon-btn" onClick={() => dispatch({ type: 'SET_MODAL', modal: 'palette' })} title="Палитра команд (Ctrl+K)">
           <Icon name="search" size={15} />
@@ -164,11 +181,13 @@ function Shell() {
       <StatusBar />
       <Toaster />
       <MediaRenderer />
+      <ContextMenu />
 
       {state.modal === 'settings' && <SettingsModal initialTab={state.settingsTab} />}
       {state.modal === 'shortcuts' && <ShortcutHelp />}
       {state.modal === 'palette' && <CommandPalette />}
       {state.modal === 'modelPicker' && <ModelPicker />}
+      {state.modal === 'reasoning' && <ReasoningModal data={state.modalData} />}
       {state.modal === 'skillEditor' && <SkillEditor skill={state.modalData} />}
       {state.permission && <PermissionModal />}
       {state.ask && <AskModal />}

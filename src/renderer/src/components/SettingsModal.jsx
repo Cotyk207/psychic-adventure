@@ -630,7 +630,13 @@ function ProvidersTab({ config, providers, onChange, onRefresh, toast }) {
   const [drafts, setDrafts] = useState({});
   const [testing, setTesting] = useState(null);
   const [busy, setBusy] = useState(false);
-  const catalog = providers;
+  const [groupFilter, setGroupFilter] = useState('all');
+
+  const catalog = providers.filter((p) => {
+    if (groupFilter === 'nokey') return p.noKey || p.local || p.accessType === 'nokey' || p.accessType === 'local';
+    if (groupFilter === 'freekey') return !p.noKey && !p.local && p.accessType !== 'nokey' && p.accessType !== 'local';
+    return true;
+  });
 
   const draftFor = (provider) => drafts[provider.id] || {
     apiKey: provider.apiKey || '',
@@ -694,10 +700,26 @@ function ProvidersTab({ config, providers, onChange, onRefresh, toast }) {
   return (
     <>
       <div className="section">
-        <div className="section-title"><Icon name="plug" size={13} /> Провайдеры</div>
+        <div className="section-title"><Icon name="plug" size={13} /> Бесплатные провайдеры</div>
         <div className="section-hint">
-          Базовые модели работают бесплатно и без ключа. Добавь ключ от любого сервиса —
-          его модели сразу появятся в списке выбора. Ключи хранятся только на этом компьютере.
+          В PSYCHIC оставлены только бесплатные модели: часть работает сразу без ключа (OpenCode Console, Pollinations, локальные),
+          остальные — бесплатно по личному ключу регистрации. Ключи хранятся только на твоём ПК.
+        </div>
+        <div className="picker-tabs" style={{ marginBottom: 12 }}>
+          {[
+            ['all', 'Все бесплатные'],
+            ['nokey', 'Без ключа (сразу)'],
+            ['freekey', 'Бесплатно по ключу'],
+          ].map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              className={cn('picker-tab', groupFilter === id && 'active')}
+              onClick={() => setGroupFilter(id)}
+            >
+              {label}
+            </button>
+          ))}
         </div>
         <div className="provider-list">
           {catalog.map((provider) => {
@@ -721,7 +743,15 @@ function ProvidersTab({ config, providers, onChange, onRefresh, toast }) {
                   <div className="provider-actions">
                     <Switch
                       value={draft.enabled}
-                      onChange={(v) => patchDraft(provider.id, { enabled: v })}
+                      onChange={async (v) => {
+                        patchDraft(provider.id, { enabled: v });
+                        try {
+                          await invoke('providers:save', { provider: { ...provider, enabled: v } });
+                          await onRefresh();
+                        } catch (err) {
+                          toast(err.message, 'error');
+                        }
+                      }}
                     />
                     <button className="icon-btn sm" onClick={() => setExpanded(isOpen ? null : provider.id)} title="Настроить">
                       <Icon name={isOpen ? 'chevron-down' : 'settings'} size={14} />
