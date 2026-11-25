@@ -1,0 +1,278 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   Мобильная адаптация для Android-смартфонов и компактных экранов
+   (на десктопе > 860px ничего не меняет)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.mobile-only {
+  display: none;
+}
+
+.browser-reader {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  padding: 16px;
+  overflow-y: auto;
+  background: color-mix(in srgb, var(--bg0) 92%, var(--surface));
+}
+.browser-reader-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.browser-reader-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+.browser-reader-url {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.browser-reader-body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.68;
+  color: var(--text-dim);
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+}
+
+@media (max-width: 860px) {
+  .mobile-only {
+    display: inline-flex;
+  }
+  .hide-xs {
+    display: none !important;
+  }
+
+  .app {
+    padding-top: env(safe-area-inset-top, 0px);
+    grid-template-rows: var(--titlebar-h) 1fr auto;
+  }
+
+  .titlebar {
+    padding: 0 10px;
+    -webkit-app-region: no-drag;
+  }
+  .brand-version {
+    display: none;
+  }
+
+  .app-body {
+    grid-template-columns: 1fr !important;
+    position: relative;
+  }
+
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 880;
+    background: rgba(3, 5, 12, 0.72);
+    backdrop-filter: blur(6px);
+  }
+
+  .sidebar {
+    position: fixed !important;
+    top: calc(var(--titlebar-h) + env(safe-area-inset-top, 0px));
+    bottom: 0;
+    left: 0;
+    width: min(300px, 84vw) !important;
+    z-index: 900;
+    background: color-mix(in srgb, var(--bg1) 97%, black) !important;
+    border-right: 1px solid var(--border-strong);
+    box-shadow: 20px 0 50px rgba(0, 0, 0, 0.7);
+    transform: translateX(-105%);
+    transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .sidebar.mobile-open {
+    transform: translateX(0);
+  }
+
+  .statusbar {
+    display: none !important;
+  }
+
+  .mobile-tabbar {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    align-items: center;
+    padding: 4px 6px calc(4px + env(safe-area-inset-bottom, 0px));
+    background: color-mix(in srgb, var(--bg1) 96%, black);
+    border-top: 1px solid var(--border);
+    z-index: 50;
+  }
+  .mobile-tab-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 6px 2px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--text-faint);
+    font-size: 10px;
+    font-weight: 500;
+  }
+  .mobile-tab-item.active {
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 11%, transparent);
+  }
+
+  /* Шапка экрана и сообщения чата */
+  .main-head {
+    padding: 8px 12px;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .main-title {
+    font-size: 13px;
+    max-width: 100%;
+  }
+  .main-head-actions {
+    gap: 5px;
+    flex-wrap: wrap;
+    margin-left: auto;
+  }
+  .reasoning-head-btn span:not(.count) {
+    display: none;
+  }
+  .model-pill {
+    max-width: 185px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 5px 9px;
+    font-size: 11px;
+  }
+
+  .messages {
+    padding: 12px 10px 14px;
+  }
+  .msg {
+    gap: 9px;
+    padding: 8px 4px;
+  }
+  .msg-avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 9px;
+  }
+  .msg-actions {
+    opacity: 1 !important;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  /* Композер чата под экран смартфона */
+  .composer-wrap {
+    padding: 6px 8px 10px;
+  }
+  .composer {
+    padding: 9px 10px 8px;
+  }
+  .composer-input {
+    font-size: 16px;
+    min-height: 24px;
+  }
+  .composer-tools {
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .composer-hint {
+    display: none;
+  }
+  .composer-model {
+    max-width: 145px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .effort-popover {
+    width: min(270px, calc(100vw - 28px));
+    left: 0;
+  }
+
+  /* Приветственный экран и панели */
+  .welcome {
+    padding: 18px 12px;
+  }
+  .welcome-grid,
+  .dash-grid,
+  .stats-grid,
+  .skills-grid,
+  .media-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .files-layout,
+  .media-layout,
+  .music-layout,
+  .memory-layout {
+    grid-template-columns: 1fr !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow-y: auto;
+  }
+
+  /* Модальные окна и Настройки во весь экран телефона */
+  .modal-backdrop {
+    padding: 8px;
+    align-items: flex-end;
+  }
+  .modal,
+  .settings-modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 92dvh !important;
+    border-radius: 16px !important;
+  }
+  .settings-modal {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 90dvh !important;
+  }
+  .settings-sidebar {
+    width: 100% !important;
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--border);
+    padding: 8px 10px !important;
+    display: flex !important;
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .settings-sidebar .sidebar-section-title {
+    display: none;
+  }
+  .settings-nav-item {
+    white-space: nowrap;
+    flex-shrink: 0;
+    padding: 7px 11px !important;
+  }
+  .settings-main {
+    padding: 14px 12px !important;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .ctx-menu {
+    min-width: 215px;
+    max-width: calc(100vw - 20px);
+  }
+}

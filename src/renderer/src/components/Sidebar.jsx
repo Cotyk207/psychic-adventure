@@ -16,11 +16,11 @@ const NAV = [
   { id: 'memory', label: 'Память', icon: 'brain', view: 'memory' },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ mobileOpen = false, onCloseMobile }) {
   const { state, setView, createChat, loadChat, deleteChat, renameChat, pinChat, openSettings, updateConfig } = useApp();
   const [editingId, setEditingId] = useState(null);
   const [editValue, setEditValue] = useState('');
-  const collapsed = state.config?.appearance?.sidebarCollapsed;
+  const collapsed = state.config?.appearance?.sidebarCollapsed && !mobileOpen;
 
   const activeSkillCount = state.skills.filter((s) => s.enabled).length;
   const provider = (state.providers || []).find((p) => p.id === state.chat?.provider)
@@ -41,7 +41,7 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className={cn('sidebar', collapsed && 'collapsed')}>
+    <aside className={cn('sidebar', collapsed && 'collapsed', mobileOpen && 'mobile-open')}>
       <div className="sidebar-head">
         <div className="sidebar-logo">
           <Logo size={20} />
@@ -50,17 +50,28 @@ export default function Sidebar() {
           <div className="sidebar-title">PSYCHIC</div>
           <div className="sidebar-subtitle">Neural Interface</div>
         </div>
-        <button
-          className="icon-btn sm"
-          style={{ marginLeft: 'auto' }}
-          onClick={toggleCollapsed}
-          title={collapsed ? 'Развернуть' : 'Свернуть'}
-        >
-          <Icon name={collapsed ? 'chevron-right' : 'chevron-left'} size={14} />
-        </button>
+        {mobileOpen ? (
+          <button
+            className="icon-btn sm mobile-only"
+            style={{ marginLeft: 'auto' }}
+            onClick={onCloseMobile}
+            title="Закрыть меню"
+          >
+            <Icon name="x" size={15} />
+          </button>
+        ) : (
+          <button
+            className="icon-btn sm"
+            style={{ marginLeft: 'auto' }}
+            onClick={toggleCollapsed}
+            title={collapsed ? 'Развернуть' : 'Свернуть'}
+          >
+            <Icon name={collapsed ? 'chevron-right' : 'chevron-left'} size={14} />
+          </button>
+        )}
       </div>
 
-      <button className="new-chat-btn" onClick={() => createChat()}>
+      <button className="new-chat-btn" onClick={() => { createChat(); onCloseMobile?.(); }}>
         <Icon name="plus" size={15} />
         <span>Новый диалог</span>
       </button>
@@ -72,7 +83,7 @@ export default function Sidebar() {
             <div
               key={item.id}
               className={cn('nav-item', state.view === item.view && 'active')}
-              onClick={() => setView(item.view)}
+              onClick={() => { setView(item.view); onCloseMobile?.(); }}
               title={item.label}
             >
               <Icon name={item.icon} size={17} className="nav-icon" />
@@ -84,7 +95,7 @@ export default function Sidebar() {
         <div style={{ height: 1, margin: '6px 10px', background: 'var(--border)' }} />
         <div
           className={cn('nav-item', state.modal === 'settings' && 'active')}
-          onClick={() => openSettings('general')}
+          onClick={() => { openSettings('general'); onCloseMobile?.(); }}
           title="Настройки"
         >
           <Icon name="settings" size={17} className="nav-icon" />
@@ -105,7 +116,7 @@ export default function Sidebar() {
               <div
                 key={chat.id}
                 className={cn('chat-item', state.activeChatId === chat.id && 'active')}
-                onClick={() => { setView('chat'); loadChat(chat.id); }}
+                onClick={() => { setView('chat'); loadChat(chat.id); onCloseMobile?.(); }}
               >
                 <div className="chat-item-main">
                   {editingId === chat.id ? (

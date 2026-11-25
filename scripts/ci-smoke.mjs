@@ -28,3 +28,4 @@ function run(command, args) {
 run(process.execPath, [path.join('node_modules', 'vite', 'bin', 'vite.js'), 'build', '--config', 'scripts/vite.smoke.config.js']);
 run(process.execPath, ['scripts/smoke-render.mjs']);
 run(process.execPath, ['scripts/e2e-fullstack.mjs']);
+run(process.execPath, ['scripts/e2e-android.mjs']);

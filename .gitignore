@@ -1,6 +1,8 @@
 node_modules/
 dist/
 release/
+release-android/
+dist-release/
 .vite/
 *.log
 .DS_Store

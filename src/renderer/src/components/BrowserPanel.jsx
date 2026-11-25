@@ -134,6 +134,28 @@ export default function BrowserPanel() {
       <div style={{ flex: 1, position: 'relative', minHeight: 0, display: 'flex' }}>
         <div ref={viewRef} className="browser-view" />
 
+        {browser.visible && browser.readerMode && (
+          <div className="browser-reader scroll-thin">
+            <div className="browser-reader-head">
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div className="browser-reader-title">{browser.title || browser.url}</div>
+                <div className="browser-reader-url">{browser.url}</div>
+              </div>
+              {browser.url && (
+                <button
+                  className="btn btn-sm btn-ghost"
+                  onClick={() => invoke('app:openExternal', { url: browser.url })}
+                >
+                  <Icon name="external-link" size={13} /> В браузере телефона
+                </button>
+              )}
+            </div>
+            <pre className="browser-reader-body">
+              {browser.loading ? 'Загрузка страницы…' : (browser.text || 'Нет текстового содержимого')}
+            </pre>
+          </div>
+        )}
+
         {!browser.visible && (
           <div className="browser-placeholder">
             <Icon name="globe" size={42} />

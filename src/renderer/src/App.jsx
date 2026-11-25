@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AppProvider, useApp } from './lib/store';
 import { cn } from './lib/utils';
 import { invoke } from './lib/api';
@@ -97,8 +97,42 @@ function MainHead() {
   );
 }
 
+function MobileTabBar({ view, onSelectView, onToggleMenu, menuOpen }) {
+  const tabs = [
+    { id: 'chat', label: 'Чат', icon: 'message-square' },
+    { id: 'dashboard', label: 'Обзор', icon: 'zap' },
+    { id: 'media', label: 'Медиа', icon: 'image' },
+    { id: 'music', label: 'Музыка', icon: 'music' },
+  ];
+
+  return (
+    <nav className="mobile-tabbar mobile-only" aria-label="Быстрая навигация">
+      {tabs.map((t) => (
+        <button
+          key={t.id}
+          type="button"
+          className={cn('mobile-tab-item', !menuOpen && view === t.id && 'active')}
+          onClick={() => onSelectView(t.id)}
+        >
+          <Icon name={t.icon} size={17} />
+          <span>{t.label}</span>
+        </button>
+      ))}
+      <button
+        type="button"
+        className={cn('mobile-tab-item', menuOpen && 'active')}
+        onClick={onToggleMenu}
+      >
+        <Icon name="menu" size={17} />
+        <span>Меню</span>
+      </button>
+    </nav>
+  );
+}
+
 function Shell() {
   const { state, dispatch, setView, createChat, openSettings, closeModal, updateConfig, stopGeneration, player, toast } = useApp();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
     const onKeyDown = (event) => {
@@ -167,9 +201,12 @@ function Shell() {
   return (
     <div className="app">
       <BackgroundFX />
-      <TitleBar />
+      <TitleBar onToggleMobileNav={() => setMobileNavOpen((v) => !v)} />
       <div className="app-body">
-        <Sidebar />
+        {mobileNavOpen && (
+          <div className="sidebar-backdrop mobile-only" onClick={() => setMobileNavOpen(false)} />
+        )}
+        <Sidebar mobileOpen={mobileNavOpen} onCloseMobile={() => setMobileNavOpen(false)} />
         <main className={cn('main', state.view === 'browser' && 'browser-main')}>
           <MainHead />
           <div style={{ display: 'flex', flex: 1, minHeight: 0, position: 'relative' }}>
@@ -179,6 +216,12 @@ function Shell() {
       </div>
       <PlayerBar />
       <StatusBar />
+      <MobileTabBar
+        view={state.view}
+        menuOpen={mobileNavOpen}
+        onSelectView={(v) => { setMobileNavOpen(false); setView(v); }}
+        onToggleMenu={() => setMobileNavOpen((v) => !v)}
+      />
       <Toaster />
       <MediaRenderer />
       <ContextMenu />

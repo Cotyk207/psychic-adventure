@@ -17,8 +17,7 @@ export default function ContextMenu() {
   useEffect(() => {
     const close = () => setMenu(null);
 
-    const onContextMenu = (event) => {
-      const target = event.target;
+    const openAt = (target, clientX, clientY, preventEvent) => {
       const isInput = target && (
         target.tagName === 'TEXTAREA' ||
         (target.tagName === 'INPUT' && !['checkbox', 'radio', 'range', 'color', 'file', 'button', 'submit'].includes(target.type))
@@ -36,12 +35,12 @@ export default function ContextMenu() {
         inputHasValue = Boolean(target.value && target.value.length > 0);
       }
 
-      event.preventDefault();
+      if (preventEvent) preventEvent.preventDefault();
 
       const vw = window.innerWidth || 1024;
       const vh = window.innerHeight || 768;
-      const x = Math.min(event.clientX, Math.max(12, vw - 252));
-      const y = Math.min(event.clientY, Math.max(12, vh - 290));
+      const x = Math.max(10, Math.min(clientX, vw - 246));
+      const y = Math.max(10, Math.min(clientY, vh - 290));
 
       setMenu({
         x,
@@ -55,20 +54,67 @@ export default function ContextMenu() {
       });
     };
 
+    const onContextMenu = (event) => {
+      openAt(event.target, event.clientX, event.clientY, event);
+    };
+
+    // Поддержка долгого нажатия пальцем (long-press) на Android-смартфоне
+    let touchTimer = null;
+    let startPos = null;
+    const clearTouch = () => {
+      if (touchTimer) {
+        clearTimeout(touchTimer);
+        touchTimer = null;
+      }
+    };
+    const onTouchStart = (e) => {
+      if (menuRef.current && menuRef.current.contains(e.target)) return;
+      const t = e.touches?.[0];
+      if (!t) return;
+      const target = e.target;
+      const relevant = target?.tagName === 'TEXTAREA'
+        || target?.tagName === 'INPUT'
+        || Boolean(target?.closest?.('[data-msg-id]'));
+      if (!relevant) return;
+      startPos = { x: t.clientX, y: t.clientY };
+      clearTouch();
+      touchTimer = setTimeout(() => {
+        openAt(target, t.clientX, t.clientY, null);
+      }, 480);
+    };
+    const onTouchMove = (e) => {
+      if (!startPos || !e.touches?.[0]) return;
+      const dx = Math.abs(e.touches[0].clientX - startPos.x);
+      const dy = Math.abs(e.touches[0].clientY - startPos.y);
+      if (dx > 12 || dy > 12) clearTouch();
+    };
+
     const onKeyDown = (event) => {
       if (event.key === 'Escape') close();
     };
 
-    window.addEventListener('contextmenu', onContextMenu);
-    window.addEventListener('mousedown', (e) => {
+    const onMouseDown = (e) => {
       if (menuRef.current && menuRef.current.contains(e.target)) return;
       close();
-    });
+    };
+
+    window.addEventListener('contextmenu', onContextMenu);
+    window.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('touchstart', onTouchStart, { passive: true });
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
+    window.addEventListener('touchend', clearTouch, { passive: true });
+    window.addEventListener('touchcancel', clearTouch, { passive: true });
     window.addEventListener('scroll', close, true);
     window.addEventListener('resize', close);
     window.addEventListener('keydown', onKeyDown);
     return () => {
+      clearTouch();
       window.removeEventListener('contextmenu', onContextMenu);
+      window.removeEventListener('mousedown', onMouseDown);
+      window.removeEventListener('touchstart', onTouchStart);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', clearTouch);
+      window.removeEventListener('touchcancel', clearTouch);
       window.removeEventListener('scroll', close, true);
       window.removeEventListener('resize', close);
       window.removeEventListener('keydown', onKeyDown);
