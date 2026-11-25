@@ -39,13 +39,42 @@ function workspaceRoot() {
 }
 
 function resolvePath(p, cwd) {
-  if (!p || !String(p).trim()) return workspaceRoot();
+  const dirs = get();
+  if (!p || !String(p).trim()) return dirs.workspace;
   let out = expandHome(String(p).trim());
   if (out.startsWith('file://')) {
     try { out = require('url').fileURLToPath(out); } catch {}
   }
-  if (!path.isAbsolute(out)) out = path.resolve(cwd || workspaceRoot(), out);
-  return path.normalize(out);
+  if (!path.isAbsolute(out)) out = path.resolve(cwd || dirs.workspace, out);
+  const normalized = path.normalize(out);
+
+  // Если запрошен стандартный ~/Desktop (или C:\Users\X\Desktop), которого нет из-за OneDrive,
+  // прозрачно перенаправляем в реальную системную папку пользователя.
+  if (dirs.home && !fs.existsSync(normalized)) {
+    const knownMap = [
+      ['Desktop', dirs.desktop],
+      ['Рабочий стол', dirs.desktop],
+      ['Documents', dirs.documents],
+      ['Документы', dirs.documents],
+      ['Downloads', dirs.downloads],
+      ['Загрузки', dirs.downloads],
+      ['Music', dirs.musicLibrary],
+      ['Музыка', dirs.musicLibrary],
+    ];
+    for (const [folderName, actualDir] of knownMap) {
+      if (!actualDir) continue;
+      const legacyBase = path.normalize(path.join(dirs.home, folderName));
+      const sameOrSub = process.platform === 'win32'
+        ? normalized.toLowerCase() === legacyBase.toLowerCase()
+          || normalized.toLowerCase().startsWith((legacyBase + path.sep).toLowerCase())
+        : normalized === legacyBase || normalized.startsWith(legacyBase + path.sep);
+      if (sameOrSub) {
+        const suffix = normalized.slice(legacyBase.length);
+        return path.normalize(actualDir + suffix);
+      }
+    }
+  }
+  return normalized;
 }
 
 function isInside(child, parent) {

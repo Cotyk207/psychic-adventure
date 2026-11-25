@@ -285,7 +285,31 @@ clickButton('Импорт настроек');
 await wait(250);
 check('e2e: config imported via UI', html().includes('Настройки импортированы'));
 
+// Отправляем в живой чат сообщение с авто-ссылкой и Markdown-ссылкой (сценарий «В чат» из Браузера, регрессия marked@12 parseInline в v1.0.6)
+window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+await wait(160);
+const composerForLink = document.querySelector('.composer textarea') || document.querySelector('textarea');
+if (composerForLink) {
+  const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
+  nativeSetter.call(
+    composerForLink,
+    '[Ссылка]\nPollinations.ai - Official Site\nhttp://Pollinations.AI и [OpenCode](https://opencode.ai "Сайт")'
+  );
+  composerForLink.dispatchEvent(new window.Event('input', { bubbles: true }));
+  composerForLink.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  await wait(450);
+}
+check(
+  'e2e: chat message with autolink & titled markdown link rendered in live UI without ErrorBoundary crash',
+  !html().includes('СБОЙ ИНТЕРФЕЙСА')
+    && html().includes('href="http://Pollinations.AI"')
+    && html().includes('href="https://opencode.ai"')
+    && html().includes('target="_blank"')
+);
+
 // Сброс до заводских настроек через UI (вкладка «О программе»)
+window.dispatchEvent(new window.KeyboardEvent('keydown', { key: ',', ctrlKey: true, bubbles: true }));
+await wait(220);
 clickButton('О программе');
 await wait(200);
 clickButton('Сбросить всё');

@@ -11,7 +11,7 @@ export default function TitleBar({ onToggleMobileNav }) {
   const appearance = config?.appearance || {};
   const themeId = appearance.theme;
   const theme = THEMES.find((t) => t.id === themeId) || THEMES[0];
-  const version = state.appInfo?.version || '1.0.6';
+  const version = state.appInfo?.version || '1.0.7';
   const desktopWindow = isElectron();
 
   const cycleTheme = () => {

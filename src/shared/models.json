@@ -130,17 +130,45 @@
       "efforts": []
     },
     "openai": {
-      "name": "GPT-4o Mini (Pollinations)",
+      "name": "GPT-5.4 Nano (Pollinations)",
+      "context": "128k",
+      "reasoning": false,
+      "vision": true,
+      "efforts": []
+    },
+    "openai-fast": {
+      "name": "GPT-5 Nano Fast (Pollinations)",
       "context": "128k",
       "reasoning": false,
       "vision": true,
       "efforts": []
     },
     "openai-large": {
-      "name": "GPT-4.1 (Pollinations)",
+      "name": "GPT-5.4 (Pollinations)",
       "context": "128k",
       "reasoning": false,
       "vision": true,
+      "efforts": []
+    },
+    "gemini": {
+      "name": "Gemini Flash (Pollinations)",
+      "context": "1M",
+      "reasoning": false,
+      "vision": true,
+      "efforts": []
+    },
+    "gemini-fast": {
+      "name": "Gemini Flash Lite (Pollinations)",
+      "context": "1M",
+      "reasoning": false,
+      "vision": true,
+      "efforts": []
+    },
+    "mistral": {
+      "name": "Mistral Small 3.2",
+      "context": "128k",
+      "reasoning": false,
+      "vision": false,
       "efforts": []
     },
     "openai-reasoning": {

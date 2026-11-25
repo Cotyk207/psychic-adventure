@@ -2,6 +2,7 @@ import PRESETS from '@shared/providers.json';
 import MODELS_DATA from '@shared/models.json';
 import { APP_VERSION, BUILTIN_SKILLS } from 'virtual:psychic-bundled';
 import { getModelMeta, resolveEffortForModel } from './models';
+import { generateProceduralImageDataUrl } from './proceduralImage';
 
 const STORAGE_KEYS = {
   config: 'psychic:mobile:v4:config',
@@ -73,6 +74,10 @@ function filterFreeModels(providerOrId, models) {
       if (/embed|bge-|jev-|decision|live|imagine|image/i.test(s)) return false;
       return /-free$/i.test(s) || s === 'big-pickle';
     });
+  }
+  if (providerId === 'pollinations') {
+    const deprecatedClassic = new Set(['deepseek', 'deepseek-reasoning', 'llama', 'openai-reasoning']);
+    return list.filter((m) => !deprecatedClassic.has(String(m).toLowerCase()));
   }
   return list;
 }
@@ -232,6 +237,9 @@ function syncPresets(config) {
   if (config.chat && !result.some((p) => p.id === config.chat.defaultProvider)) {
     config.chat.defaultProvider = 'opencode';
     config.chat.defaultModel = 'tidepool-alpha-free';
+  }
+  if (config.chat?.defaultProvider === 'pollinations' && /^(deepseek|llama|openai-reasoning)/i.test(String(config.chat?.defaultModel || ''))) {
+    config.chat.defaultModel = 'openai';
   }
   return config;
 }
@@ -440,6 +448,45 @@ function joinUrl(base, endpoint) {
   return `${b}/${e}`;
 }
 
+function formatProviderHttpError(err, providerName = 'API') {
+  const status = Number(err?.status) || 0;
+  const raw = String(err?.message || err || '').trim();
+  let detail = raw;
+  let errorType = '';
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') {
+      const errObj = parsed.error && typeof parsed.error === 'object' ? parsed.error : null;
+      errorType = String(errObj?.type || errObj?.code || parsed.type || '');
+      detail = String(
+        errObj?.message
+        || (typeof parsed.error === 'string' ? parsed.error : '')
+        || parsed.message
+        || raw
+      ).trim();
+    }
+  } catch {}
+  const combined = `${errorType} ${detail}`.toLowerCase();
+  const lowerName = String(providerName).toLowerCase();
+  let hint = '';
+  if (/freeusagelimiterror/i.test(combined)) {
+    hint = 'Исчерпан бесплатный лимит публичного пула OpenCode. Переключись на Pollinations.AI или укажи бесплатный ключ (Groq / Gemini / OpenRouter).';
+  } else if (status === 402 && lowerName.includes('hugging')) {
+    hint = 'Исчерпаны бесплатные месячные кредиты Hugging Face Inference. Переключись на Pollinations.AI, Groq или Google Gemini.';
+  } else if (status === 404 && /classic api/i.test(combined)) {
+    hint = 'Эта модель отключена в бесплатном Classic API Pollinations — используй openai, openai-fast, qwen-coder, mistral или gemini.';
+  } else if (status === 429) {
+    hint = 'Превышен лимит запросов (rate limit). Подожди немного или смени бесплатный провайдер.';
+  }
+  const formatted = new Error(
+    status
+      ? `${providerName} ${status}${hint ? ` — ${hint}` : (detail ? `: ${detail.slice(0, 260)}` : '')}`
+      : (detail || 'Ошибка запроса к провайдеру')
+  );
+  formatted.status = status;
+  if (err?.code) formatted.code = err.code;
+  return formatted;
+}
 function buildProviderHeaders(provider) {
   const h = {
     'Content-Type': 'application/json',
@@ -747,7 +794,7 @@ export function createMobileBridge() {
         reject(new Error('Таймаут генерации медиа'));
       }, 45000);
       pendingRenderTasks.set(id, { resolve, reject, timer });
-      emit('media:renderTask', { id, kind, params });
+      emit('media:render', { id, kind, payload: params });
     });
 
   // ── Состояние встроенного ридер-браузера ────────────────────────────────
@@ -976,6 +1023,16 @@ export function createMobileBridge() {
     try {
       yield* attemptStream(hasTools, hasEffort);
     } catch (err) {
+      if (
+        provider.id === 'pollinations'
+        && !provider.apiKey
+        && (err.status === 404 || err.status === 400)
+        && model !== 'openai'
+      ) {
+        model = 'openai';
+        yield* attemptStream(hasTools, false);
+        return;
+      }
       if (hasEffort && (err.status === 400 || err.status === 422)) {
         try {
           yield* attemptStream(hasTools, false);
@@ -985,14 +1042,14 @@ export function createMobileBridge() {
             yield* attemptStream(false, false);
             return;
           }
-          throw err2;
+          throw formatProviderHttpError(err2, provider.name);
         }
       }
       if (hasTools && (err.status === 400 || err.status === 422 || err.status === 404)) {
         yield* attemptStream(false, false);
         return;
       }
-      throw err;
+      throw formatProviderHttpError(err, provider.name);
     }
   }
 
@@ -1098,8 +1155,16 @@ export function createMobileBridge() {
     }
     if (name === 'generate_image') {
       const imgUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(args.prompt)}?width=1024&height=1024&nologo=true&seed=${Math.floor(Math.random() * 999999)}`;
-      const dataUrl = await fetchBinaryDataUrl(imgUrl);
-      const filePath = `${defaultPaths.images}/img-${Date.now()}.jpg`;
+      let dataUrl;
+      let ext = 'jpg';
+      try {
+        dataUrl = await fetchBinaryDataUrl(imgUrl);
+      } catch {
+        const fallback = await generateProceduralImageDataUrl({ prompt: args.prompt, width: 1024, height: 1024 });
+        dataUrl = fallback.dataUrl;
+        ext = fallback.ext || 'png';
+      }
+      const filePath = `${defaultPaths.images}/img-${Date.now()}.${ext}`;
       fsWriteDataUrl(filePath, dataUrl);
       return `Изображение сгенерировано и сохранено: ${filePath}`;
     }
@@ -1140,23 +1205,27 @@ export function createMobileBridge() {
       throw new Error('Не включён ни один бесплатный провайдер. Открой Настройки → Провайдеры.');
     }
 
-    const model = chat.model || provider.defaultModel || provider.models?.[0] || 'openai';
-    const meta = getModelMeta(provider.id, model);
-    const resolvedEffort = resolveEffortForModel(meta, effortOverride ?? config.chat?.reasoningEffort ?? 'medium');
+    let activeProvider = provider;
+    let activeModel = chat.model || provider.defaultModel || provider.models?.[0] || 'openai';
+    const meta = getModelMeta(activeProvider.id, activeModel);
+    let activeEffort = resolveEffortForModel(meta, effortOverride ?? config.chat?.reasoningEffort ?? 'medium');
+    let didProviderFallback = false;
 
     if (text?.trim() || attachments?.length) {
-      chat.messages.push({
+      const userMsg = {
         id: `msg-${uid(8)}`,
         role: 'user',
         content: text || '',
         attachments,
         createdAt: Date.now(),
-      });
+      };
+      chat.messages.push(userMsg);
       if (chat.messages.filter((m) => m.role === 'user').length === 1 && (!chat.title || chat.title === 'Новый диалог')) {
         chat.title = String(text || 'Диалог').trim().slice(0, 46);
       }
       chat.updatedAt = Date.now();
       writeJson(STORAGE_KEYS.chats, chats);
+      emit('agent:event', { type: 'user_saved', chatId: chat.id, message: userMsg, title: chat.title });
     }
 
     const controller = new AbortController();
@@ -1167,9 +1236,9 @@ export function createMobileBridge() {
       type: 'start',
       chatId: chat.id,
       messageId,
-      provider: provider.id,
-      model,
-      reasoningEffort: resolvedEffort,
+      provider: activeProvider.id,
+      model: activeModel,
+      reasoningEffort: activeEffort,
     });
 
     const activeSkillBodies = BUILTIN_SKILLS.concat(customSkills)
@@ -1218,25 +1287,25 @@ export function createMobileBridge() {
         let stepReasoning = '';
         const stepCalls = [];
 
-        const streamGen = provider.type === 'google'
+        const streamGen = activeProvider.type === 'google'
           ? streamGemini({
-              provider,
-              model,
+              provider: activeProvider,
+              model: activeModel,
               messages: conversation,
               tools: MOBILE_TOOLS,
               temperature: config.chat?.temperature,
               maxTokens: config.chat?.maxTokens,
-              reasoningEffort: resolvedEffort,
+              reasoningEffort: activeEffort,
               signal: controller.signal,
             })
           : streamOpenAICompat({
-              provider,
-              model,
+              provider: activeProvider,
+              model: activeModel,
               messages: conversation,
               tools: MOBILE_TOOLS,
               temperature: config.chat?.temperature,
               maxTokens: config.chat?.maxTokens,
-              reasoningEffort: resolvedEffort,
+              reasoningEffort: activeEffort,
               signal: controller.signal,
             });
 
@@ -1260,6 +1329,37 @@ export function createMobileBridge() {
             finalContent += stepText;
             finalReasoning += stepReasoning;
             break;
+          }
+          const canFallback =
+            step === 0
+            && !didProviderFallback
+            && !stepText
+            && !stepReasoning
+            && !stepCalls.length
+            && !activeProvider.apiKey
+            && (activeProvider.id === 'opencode' || activeProvider.id === 'pollinations');
+          const altId = activeProvider.id === 'opencode' ? 'pollinations' : 'opencode';
+          const altProvider = canFallback
+            ? enabledProviders.find((p) => p.id === altId && !p.apiKey)
+            : null;
+          if (altProvider) {
+            didProviderFallback = true;
+            activeProvider = altProvider;
+            activeModel = altProvider.defaultModel || altProvider.models?.[0] || 'openai';
+            activeEffort = resolveEffortForModel(
+              getModelMeta(activeProvider.id, activeModel),
+              effortOverride ?? config.chat?.reasoningEffort ?? 'medium'
+            );
+            emit('agent:event', {
+              type: 'start',
+              chatId: chat.id,
+              messageId,
+              provider: activeProvider.id,
+              model: activeModel,
+              reasoningEffort: activeEffort,
+            });
+            step -= 1;
+            continue;
           }
           throw err;
         }
@@ -1305,10 +1405,10 @@ export function createMobileBridge() {
         role: 'assistant',
         content: finalContent,
         reasoning: finalReasoning,
-        reasoningEffort: resolvedEffort,
+        reasoningEffort: activeEffort,
         createdAt: Date.now(),
-        model,
-        provider: provider.id,
+        model: activeModel,
+        provider: activeProvider.id,
         toolCalls: allToolCalls,
         usage,
         aborted,
@@ -1323,7 +1423,7 @@ export function createMobileBridge() {
         messageId,
         content: finalContent,
         reasoning: finalReasoning,
-        reasoningEffort: resolvedEffort,
+        reasoningEffort: activeEffort,
         toolCalls: allToolCalls,
         usage,
         aborted,
@@ -1832,12 +1932,12 @@ export function createMobileBridge() {
         ? [['images', defaultPaths.images]]
         : type === 'music'
           ? [['music', defaultPaths.music]]
-          : type === 'videos'
-            ? [['videos', defaultPaths.videos]]
+          : type === 'video' || type === 'videos'
+            ? [['video', defaultPaths.videos]]
             : [
                 ['images', defaultPaths.images],
                 ['music', defaultPaths.music],
-                ['videos', defaultPaths.videos],
+                ['video', defaultPaths.videos],
               ];
       const items = [];
       for (const [kind, d] of dirs) {
@@ -1870,12 +1970,40 @@ export function createMobileBridge() {
       }
       return dataUrl || p;
     },
-    'media:generateImage': async ({ prompt, width = 1024, height = 1024 }) => {
-      const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${width}&height=${height}&nologo=true&seed=${Math.floor(Math.random() * 999999)}`;
-      const dataUrl = await fetchBinaryDataUrl(url);
-      const path = `${defaultPaths.images}/img-${Date.now()}.jpg`;
-      fsWriteDataUrl(path, dataUrl);
-      return { images: [{ path, dataUrl }] };
+    'media:generateImage': async ({ prompt, style = 'auto', width = 1024, height = 1024, count = 1 }) => {
+      if (!String(prompt || '').trim()) throw new Error('Пустой промпт');
+      const total = Math.min(4, Math.max(1, Number(count) || 1));
+      const files = [];
+      for (let i = 0; i < total; i++) {
+        const seed = Math.floor(Math.random() * 999999);
+        const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${width}&height=${height}&nologo=true&seed=${seed}`;
+        let dataUrl;
+        let ext = 'jpg';
+        let mime = 'image/jpeg';
+        try {
+          dataUrl = await fetchBinaryDataUrl(url);
+        } catch {
+          const fallback = await generateProceduralImageDataUrl({ prompt, style, width, height, seed });
+          dataUrl = fallback.dataUrl;
+          ext = fallback.ext || 'png';
+          mime = fallback.mime || 'image/png';
+        }
+        const name = `img-${Date.now()}-${i}.${ext}`;
+        const filePath = `${defaultPaths.images}/${name}`;
+        fsWriteDataUrl(filePath, dataUrl);
+        const b64 = String(dataUrl).split(',')[1] || '';
+        files.push({
+          path: filePath,
+          name,
+          mime,
+          size: Math.floor(b64.length * 0.75),
+          dataUrl,
+          width,
+          height,
+          prompt,
+        });
+      }
+      return { files, images: files.map((f) => ({ path: f.path, name: f.name, dataUrl: f.dataUrl, mimeType: f.mime })) };
     },
     'media:generateMusic': async (params) => {
       const rendered = await requestRendererMedia('music', params);

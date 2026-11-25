@@ -1,17 +1,21 @@
 import React, { useEffect } from 'react';
 import { on, invoke } from '../lib/api';
 import { generateMusicDataUrl } from '../lib/proceduralMusic';
+import { generateProceduralImageDataUrl } from '../lib/proceduralImage';
 import { renderSlideshow } from '../lib/videoMaker';
 
 /**
- Невидимый компонент-воркер: генерирует музыку и видео силами браузера
- и возвращает результат в main-процесс.
+ Невидимый компонент-воркер: генерирует изображения, музыку и видео силами браузера
+ и возвращает результат в main-процесс (или mobileBridge).
  */
 export default function MediaRenderer() {
   useEffect(() => {
     const unsub = on('media:render', async ({ id, kind, payload }) => {
       try {
-        if (kind === 'music') {
+        if (kind === 'image') {
+          const { dataUrl, ext, mime, size } = await generateProceduralImageDataUrl(payload);
+          await invoke('media:renderResult', { id, ok: true, dataUrl, ext, mime, size });
+        } else if (kind === 'music') {
           const { dataUrl, duration, size } = await generateMusicDataUrl(payload);
           await invoke('media:renderResult', { id, ok: true, dataUrl, ext: 'wav', duration, size });
         } else if (kind === 'video') {

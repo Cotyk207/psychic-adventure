@@ -45,6 +45,15 @@ class Agent {
     return providers.find((p) => p.id === id) || providers.find((p) => p.id === this.store.get('chat.defaultProvider')) || providers[0];
   }
 
+  findFallbackNoKeyProvider(primaryProvider) {
+    if (!primaryProvider || primaryProvider.apiKey) return null;
+    if (primaryProvider.id !== 'opencode' && primaryProvider.id !== 'pollinations') return null;
+    const altId = primaryProvider.id === 'opencode' ? 'pollinations' : 'opencode';
+    const providers = this.store.get('providers') || [];
+    const alt = providers.find((p) => p.id === altId && p.enabled !== false && p.baseUrl);
+    return alt || null;
+  }
+
   isActive(chatId) {
     return this.active.has(chatId);
   }
@@ -196,13 +205,18 @@ class Agent {
       const history = this.buildHistory(chat, config.chat.contextMessages);
       const messages = [{ role: 'system', content: systemPrompt }, ...history];
 
+      let activeProvider = provider;
+      let activeModel = model;
+      let activeEffort = resolvedEffort;
+      let didProviderFallback = false;
+
       const messageId = uid(10);
       this.emit(chatId, 'start', {
         messageId,
-        provider: provider.id,
-        providerName: provider.name,
-        model,
-        reasoningEffort: resolvedEffort,
+        provider: activeProvider.id,
+        providerName: activeProvider.name,
+        model: activeModel,
+        reasoningEffort: activeEffort,
       });
 
       const tools = toolDefinitions();
@@ -219,11 +233,11 @@ class Agent {
         const calls = [];
 
         try {
-          for await (const ev of providerChat(provider, model, messages, {
+          for await (const ev of providerChat(activeProvider, activeModel, messages, {
             tools,
             temperature: config.chat.temperature,
             maxTokens: config.chat.maxTokens,
-            reasoningEffort: resolvedEffort,
+            reasoningEffort: activeEffort,
             signal,
             stream: config.chat.stream,
             onUsage: (u) => { usage = { ...usage, ...u }; },
@@ -245,6 +259,29 @@ class Agent {
             finalContent += text;
             finalReasoning += reasoning;
             break;
+          }
+          // Автоматический резервный переход между бесплатными безключевыми пулами (opencode <-> pollinations)
+          // при 429 FreeUsageLimitError / 402 / 403 / 404 / 5xx до начала генерации текста
+          const altProvider = step === 0 && !didProviderFallback && !text && !reasoning && !calls.length
+            ? this.findFallbackNoKeyProvider(activeProvider)
+            : null;
+          if (altProvider) {
+            didProviderFallback = true;
+            activeProvider = altProvider;
+            activeModel = altProvider.defaultModel || altProvider.models?.[0] || 'openai';
+            activeEffort = resolveEffortForModel(
+              getModelMeta(activeProvider.id, activeModel),
+              reasoningEffort || config.chat.reasoningEffort || 'medium'
+            );
+            this.emit(chatId, 'start', {
+              messageId,
+              provider: activeProvider.id,
+              providerName: activeProvider.name,
+              model: activeModel,
+              reasoningEffort: activeEffort,
+            });
+            step -= 1;
+            continue;
           }
           throw err;
         }
@@ -277,8 +314,8 @@ class Agent {
 
           const ctx = {
             chatId,
-            provider,
-            model,
+            provider: activeProvider,
+            model: activeModel,
             store: this.store,
             services: this.services,
             interactions: this.interactions,
@@ -305,7 +342,7 @@ class Agent {
             content: truncate(result.text || result.error || 'OK', 60000),
           });
 
-          if (result.ok && result.images && result.images.length && supportsVision(model)) {
+          if (result.ok && result.images && result.images.length && supportsVision(activeModel)) {
             const parts = [
               { type: 'text', text: `Результат инструмента ${call.name} — прикреплённые изображения:` },
               ...result.images.slice(0, 4).map((img) => ({
@@ -328,7 +365,7 @@ class Agent {
           content: 'Лимит шагов инструментов исчерпан. Ответь пользователю текстом: что сделано и что осталось.',
         });
         try {
-          for await (const ev of providerChat(provider, model, messages, {
+          for await (const ev of providerChat(activeProvider, activeModel, messages, {
             temperature: config.chat.temperature,
             maxTokens: config.chat.maxTokens,
             signal,
@@ -350,10 +387,10 @@ class Agent {
         role: 'assistant',
         content: finalContent,
         reasoning: finalReasoning,
-        reasoningEffort: resolvedEffort,
+        reasoningEffort: activeEffort,
         createdAt: Date.now(),
-        model,
-        provider: provider.id,
+        model: activeModel,
+        provider: activeProvider.id,
         toolCalls: allToolCalls.map((tc) => ({
           id: tc.id,
           name: tc.name,
@@ -379,7 +416,7 @@ class Agent {
         messageId,
         content: finalContent,
         reasoning: finalReasoning,
-        reasoningEffort: resolvedEffort,
+        reasoningEffort: activeEffort,
         toolCalls: assistantMessage.toolCalls,
         usage,
         aborted,

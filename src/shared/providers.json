@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 5,
   "providers": [
     {
       "id": "opencode",
@@ -43,17 +43,16 @@
       "color": "#a3ff6b",
       "baseUrl": "https://text.pollinations.ai/openai",
       "docsUrl": "https://pollinations.ai",
-      "keyUrl": "",
-      "keyHint": "Ключ не нужен — это бесплатное публичное API.",
+      "keyUrl": "https://enter.pollinations.ai/keys",
+      "keyHint": "Ключ не нужен — Classic API работает сразу. Для расширенного каталога можно указать бесплатный ключ sk_... с enter.pollinations.ai.",
       "models": [
         "openai",
+        "openai-fast",
         "openai-large",
-        "openai-reasoning",
-        "deepseek-reasoning",
         "qwen-coder",
-        "gemini",
         "mistral",
-        "llama"
+        "gemini",
+        "gemini-fast"
       ],
       "defaultModel": "openai",
       "modelFetch": "openai",

@@ -37,17 +37,57 @@ async function* sseJson(body) {
   }
 }
 
+function extractReadableBody(bodyText) {
+  const raw = String(bodyText || '').trim();
+  if (!raw) return { detail: '', errorType: '' };
+  const parsed = safeJson(raw, null);
+  if (parsed && typeof parsed === 'object') {
+    const errObj = parsed.error && typeof parsed.error === 'object' ? parsed.error : null;
+    const errorType = String(errObj?.type || errObj?.code || parsed.type || '');
+    const msg =
+      errObj?.message
+      || (typeof parsed.error === 'string' ? parsed.error : '')
+      || parsed.message
+      || parsed.detail
+      || '';
+    return { detail: String(msg || '').trim(), errorType };
+  }
+  return { detail: raw.slice(0, 320), errorType: '' };
+}
+
 function httpError(status, bodyText, providerName) {
+  const name = providerName || 'API';
+  const lowerName = name.toLowerCase();
+  const { detail, errorType } = extractReadableBody(bodyText);
+  const combined = `${errorType} ${detail}`.toLowerCase();
+
   let hint = '';
-  if (status === 401 || status === 403) hint = 'Неверный или просроченный API-ключ.';
-  else if (status === 429) hint = 'Превышен лимит запросов (rate limit). Подожди или смени модель.';
-  else if (status === 402) hint = 'Недостаточно средств на балансе.';
-  else if (status === 404) hint = 'Модель или эндпоинт не найден. Проверь название модели и Base URL.';
-  else if (status >= 500) hint = 'Сервер провайдера недоступен. Попробуй позже.';
-  const err = new Error(`${providerName || 'API'} ${status}${hint ? ` — ${hint}` : ''}${bodyText ? `\n${String(bodyText).slice(0, 400)}` : ''}`);
+  if (/freeusagelimiterror/i.test(combined)) {
+    hint = 'Исчерпан бесплатный лимит публичного пула OpenCode. Переключись на Pollinations.AI или укажи бесплатный ключ (Groq / Gemini / OpenRouter).';
+  } else if (status === 402 && lowerName.includes('hugging')) {
+    hint = 'Исчерпаны бесплатные месячные кредиты Hugging Face Inference. Переключись на Pollinations.AI, Groq или Google Gemini.';
+  } else if (status === 404 && lowerName.includes('ollama')) {
+    hint = 'Модель не скачана в Ollama. Выполни «ollama pull <модель>» в терминале или нажми «Найти локальные модели» в Настройках.';
+  } else if (status === 404 && /classic api/i.test(combined)) {
+    hint = 'Эта модель отключена в бесплатном Classic API Pollinations — выбери модель openai, openai-fast, qwen-coder, mistral или gemini.';
+  } else if (status === 401 || status === 403) {
+    hint = 'Неверный или просроченный API-ключ.';
+  } else if (status === 429) {
+    hint = 'Превышен лимит запросов (rate limit). Подожди немного или смени бесплатный провайдер.';
+  } else if (status === 402) {
+    hint = 'Исчерпан бесплатный лимит или баланс у этого провайдера — выбери другой бесплатный провайдер.';
+  } else if (status === 404) {
+    hint = 'Модель или эндпоинт не найден. Проверь название модели и Base URL.';
+  } else if (status >= 500) {
+    hint = 'Сервер провайдера временно перегружен. Попробуй позже или выбери другую модель.';
+  }
+
+  const tail = detail && !hint.includes(detail) ? `\n${detail.slice(0, 300)}` : '';
+  const err = new Error(`${name} ${status}${hint ? ` — ${hint}` : ''}${tail}`);
   err.status = status;
+  err.code = errorType || undefined;
   err.provider = providerName;
   return err;
 }
 
-module.exports = { sseJson, httpError };
+module.exports = { sseJson, httpError, extractReadableBody };

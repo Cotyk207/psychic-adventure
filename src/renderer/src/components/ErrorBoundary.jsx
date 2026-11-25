@@ -3,12 +3,12 @@ import Icon from './Icon';
 
 /**
  * Последний рубеж: если какой-то компонент упал, показываем аккуратный экран
- * вместо белого окна, и приложение можно перезапустить без потери данных.
+ * вместо белого окна, и приложение можно мгновенно восстановить без потери данных.
  */
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { error: null, info: null };
+    this.state = { error: null, info: null, recovering: false };
   }
 
   static getDerivedStateFromError(error) {
@@ -22,10 +22,18 @@ export default class ErrorBoundary extends React.Component {
     } catch {}
   }
 
-  reset = () => this.setState({ error: null, info: null });
+  reset = () => this.setState({ error: null, info: null, recovering: false });
+
+  openCleanChat = async () => {
+    this.setState({ recovering: true });
+    try {
+      await window.psychic?.invoke?.('chats:create', { title: 'Новый диалог' });
+    } catch {}
+    this.setState({ error: null, info: null, recovering: false });
+  };
 
   render() {
-    const { error } = this.state;
+    const { error, recovering } = this.state;
     if (!error) return this.props.children;
 
     return (
@@ -36,12 +44,15 @@ export default class ErrorBoundary extends React.Component {
           </div>
           <div className="error-title">СБОЙ ИНТЕРФЕЙСА</div>
           <div className="error-text">
-            Что-то пошло не так в интерфейсе. Данные и диалоги не пострадали —
-            они хранятся на диске. Попробуй перезапустить приложение.
+            Что-то пошло не так при отрисовке окна. Данные и диалоги не пострадали —
+            они сохранены на диске. Нажми «Новый чистый диалог» или «Перезапустить интерфейс».
           </div>
           <pre className="error-stack">{String(error?.message || error)}</pre>
           <div className="error-actions">
-            <button className="btn btn-primary" onClick={this.reset}>
+            <button className="btn btn-primary" onClick={this.openCleanChat} disabled={recovering}>
+              <Icon name="message-square" size={14} /> Новый чистый диалог
+            </button>
+            <button className="btn" onClick={this.reset} disabled={recovering}>
               <Icon name="rotate-ccw" size={14} /> Перезапустить интерфейс
             </button>
             <button className="btn" onClick={() => window.psychic?.invoke?.('app:relaunch')}>
