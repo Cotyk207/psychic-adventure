@@ -11,6 +11,7 @@ def launchers = [
     gemini:     [name: 'Gemini',     url: 'https://gemini.google.com/'],
     perplexity: [name: 'Perplexity', url: 'https://www.perplexity.ai/'],
     copilot:    [name: 'Copilot',    url: 'https://copilot.microsoft.com/'],
+    arena:      [name: 'Arena',      url: 'https://arena.ai/'],
 ]
 
 android {
@@ -20,6 +21,7 @@ android {
         applicationId 'ai.psychic.launchers'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
+        manifestPlaceholders = [launcherActivity: '.MainActivity']
         versionCode versionParts[0] * 10000 + versionParts[1] * 100 + versionParts[2]
         versionName pkgVer
     }
@@ -29,6 +31,7 @@ android {
         launchers.each { key, config ->
             create(key) {
                 dimension 'service'
+                if (key == 'arena') manifestPlaceholders = [launcherActivity: '.ArenaActivity']
                 applicationIdSuffix ".${key}"
                 resValue 'string', 'app_name', "PSYCHIC · ${config.name}"
                 buildConfigField 'String', 'SERVICE_URL', "\"${config.url}\""

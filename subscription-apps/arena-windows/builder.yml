@@ -1,0 +1,15 @@
+appId: ai.psychic.arena
+productName: PSYCHIC Arena
+extraMetadata:
+  name: psychic-arena
+  main: subscription-apps/arena-windows/main.cjs
+directories:
+  output: release-web-apps-windows
+files:
+  - subscription-apps/arena-windows/main.cjs
+  - package.json
+npmRebuild: false
+win:
+  icon: subscription-apps/icons/arena.ico
+  target: portable
+  artifactName: PSYCHIC-Arena-Windows-${version}.${ext}

@@ -7,7 +7,7 @@
         android:roundIcon="@drawable/ic_launcher"
         android:usesCleartextTraffic="false"
         android:theme="@style/LauncherTheme">
-        <activity android:name=".MainActivity" android:exported="true">
+        <activity android:name="${launcherActivity}" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

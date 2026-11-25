@@ -136,7 +136,7 @@ jobs:
           cp "$APK_SRC" "$APK_DST"
           APKSIGNER=$(ls -1 "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -n 1)
           "$APKSIGNER" verify --verbose "$APK_DST"
-          for entry in chatgpt:ChatGPT claude:Claude gemini:Gemini perplexity:Perplexity copilot:Copilot; do
+          for entry in chatgpt:ChatGPT claude:Claude gemini:Gemini perplexity:Perplexity copilot:Copilot arena:Arena; do
             flavor="${entry%%:*}"
             name="${entry#*:}"
             src="android/service-launcher/build/outputs/apk/${flavor}/release/service-launcher-${flavor}-release.apk"
@@ -157,12 +157,32 @@ jobs:
   build-service-launchers-windows:
     needs: test
     runs-on: windows-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Build five independent service launchers
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Build Arena Windows application
+        shell: pwsh
+        run: |
+          npx electron-builder --win portable --config subscription-apps/arena-windows/builder.yml --publish never *> arena-build.log
+          $code = $LASTEXITCODE
+          Get-Content arena-build.log
+          if ($code -ne 0) {
+            $message = (Get-Content arena-build.log -Raw).Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+            Write-Host "::error::$message"
+            exit $code
+          }
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Build independent service launchers
         shell: powershell
         run: ./subscription-apps/windows/build.ps1
       - name: Upload Windows service launchers
