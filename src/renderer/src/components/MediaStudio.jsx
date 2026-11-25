@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../lib/store';
-import { invoke } from '../lib/api';
+import { invoke, isAndroidApp } from '../lib/api';
 import { cn, formatBytes, formatDuration, downloadDataUrl } from '../lib/utils';
 import Icon from './Icon';
 
@@ -211,9 +211,11 @@ export default function MediaStudio() {
             </button>
           ))}
         </div>
-        <button className="icon-btn" onClick={openFolder} title="Открыть папку">
-          <Icon name="folder-open" size={15} />
-        </button>
+        {!isAndroidApp() && (
+          <button className="icon-btn" onClick={openFolder} title="Открыть папку">
+            <Icon name="folder-open" size={15} />
+          </button>
+        )}
       </div>
 
       <div className="media-layout">
@@ -399,7 +401,7 @@ export default function MediaStudio() {
         </div>
 
         <div className="panel-body" style={{ padding: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderBottom: '1px solid var(--border)' }}>
+          <div className="panel-subbar">
             <div className="search-input" style={{ flex: 1, maxWidth: 260 }}>
               <Icon name="search" size={13} />
               <input

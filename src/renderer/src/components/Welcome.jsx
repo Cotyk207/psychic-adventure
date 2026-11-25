@@ -26,8 +26,11 @@ const SUGGESTIONS = [
   {
     icon: 'terminal',
     title: 'Работа с ПК',
+    mobileTitle: 'Работа с файлами',
     text: 'Покажи файлы на рабочем столе и наведи порядок',
+    mobileText: 'Покажи файлы в рабочей папке и создай заметку',
     prompt: 'Покажи, какие файлы лежат на рабочем столе, и предложи, как навести порядок.',
+    mobilePrompt: 'Покажи, какие файлы есть в рабочей папке, и создай аккуратную заметку с планом дел.',
   },
   {
     icon: 'music',
@@ -143,15 +146,19 @@ export default function Welcome() {
 
       <div className="suggestions">
         {SUGGESTIONS.map((s) => (
-          <button key={s.title} className="suggestion" onClick={() => sendMessage(s.prompt)}>
+          <button
+            key={s.title}
+            className="suggestion"
+            onClick={() => sendMessage(isAndroidApp() && s.mobilePrompt ? s.mobilePrompt : s.prompt)}
+          >
             <div className="suggestion-icon">
               <Icon name={s.icon} size={15} />
             </div>
             <div className="suggestion-title">
-              {s.title === 'Работа с ПК' && isAndroidApp() ? 'Работа с файлами' : s.title}
+              {isAndroidApp() && s.mobileTitle ? s.mobileTitle : s.title}
             </div>
             <div className="suggestion-text">
-              {s.title === 'Работа с ПК' && isAndroidApp() ? 'Покажи файлы в рабочей папке и наведи порядок' : s.text}
+              {isAndroidApp() && s.mobileText ? s.mobileText : s.text}
             </div>
           </button>
         ))}

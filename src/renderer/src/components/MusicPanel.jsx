@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../lib/store';
-import { invoke } from '../lib/api';
+import { invoke, isAndroidApp } from '../lib/api';
 import { cn, formatDuration } from '../lib/utils';
 import Icon from './Icon';
 
@@ -107,14 +107,16 @@ export default function MusicPanel() {
             </button>
           ))}
         </div>
-        <button className="icon-btn" onClick={openFolder} title="Открыть папку музыки">
-          <Icon name="folder-open" size={15} />
-        </button>
+        {!isAndroidApp() && (
+          <button className="icon-btn" onClick={openFolder} title="Открыть папку музыки">
+            <Icon name="folder-open" size={15} />
+          </button>
+        )}
       </div>
 
       {tab === 'library' && (
         <>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', borderBottom: '1px solid var(--border)' }}>
+          <div className="panel-subbar">
             <div className="search-input" style={{ flex: 1, maxWidth: 320 }}>
               <Icon name="search" size={13} />
               <input
@@ -171,13 +173,15 @@ export default function MusicPanel() {
                       <div className="track-artist truncate">{track.artist || '—'}{track.album ? ` · ${track.album}` : ''}</div>
                     </div>
                     <span className="mono" style={{ fontSize: 10, color: 'var(--text-faint)' }}>{formatDuration(track.duration)}</span>
-                    <button
-                      className="icon-btn sm"
-                      onClick={() => invoke('app:openPath', { path: track.path })}
-                      title="Показать в папке"
-                    >
-                      <Icon name="external" size={12} />
-                    </button>
+                    {!isAndroidApp() && (
+                      <button
+                        className="icon-btn sm"
+                        onClick={() => invoke('app:openPath', { path: track.path })}
+                        title="Показать в папке"
+                      >
+                        <Icon name="external" size={12} />
+                      </button>
+                    )}
                   </div>
                 );
               })}

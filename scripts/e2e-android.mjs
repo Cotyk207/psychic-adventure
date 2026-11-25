@@ -173,11 +173,20 @@ window.PsychicAndroid = {
           window.__psychicNativeEvent({ reqId, event: 'chunk', status: 200, data: `data: ${tcChunk}\n\ndata: [DONE]\n\n` });
           window.__psychicNativeEvent({ reqId, event: 'end', status: 200 });
         } else {
+          const replyMd = [
+            '<think>Проверяю результат записи.</think>Файл phone-note.txt сохранён на твоём телефоне!',
+            '',
+            '| ЧТО | ЧТО ДЕЛАЮ | КАК ЗАДАТЬ |',
+            '| --- | --- | --- |',
+            '| Браузер | Открываю страницы, читаю их, делаю скриншоты. | `browser_open`, `browser_read`, `screenshot` |',
+            '| Код | Пишу и запускаю скрипты в `/storage/emulated/0/Android/data/ai.psychic.neural/files/PSYCHIC Workspace`. | `write_file`, `edit_file` |',
+          ].join('\n');
+          const msgChunk = JSON.stringify({ choices: [{ delta: { content: replyMd } }] });
           window.__psychicNativeEvent({
             reqId,
             event: 'chunk',
             status: 200,
-            data: 'data: {"choices":[{"delta":{"content":"<think>Проверяю результат записи.</think>Файл phone-note.txt сохранён на твоём телефоне!"}}]}\n\ndata: [DONE]\n\n',
+            data: `data: ${msgChunk}\n\ndata: [DONE]\n\n`,
           });
           window.__psychicNativeEvent({ reqId, event: 'end', status: 200 });
         }
@@ -326,6 +335,12 @@ check(
   html().includes('Файл phone-note.txt сохранён на твоём телефоне!') &&
     html().includes('Рассуждения ИИ') &&
     html().includes('Проверяю результат записи.')
+);
+check(
+  'android: markdown table enhanced with mobile card labels & send button visible',
+  Boolean(document.querySelector('.msg-content .table-wrap table.has-headers')) &&
+    Boolean(document.querySelector('.msg-content td[data-label="КАК ЗАДАТЬ"]')) &&
+    Boolean(document.querySelector('.composer .send-btn'))
 );
 
 console.error = origErr;

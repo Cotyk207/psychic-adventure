@@ -100,17 +100,55 @@ marked.use({
 });
 
 const SANITIZE_OPTS = {
-  ADD_ATTR: ['target', 'rel', 'loading'],
+  ADD_ATTR: ['target', 'rel', 'loading', 'data-label'],
   FORBID_TAGS: ['style', 'form', 'input', 'iframe'],
   FORBID_ATTR: ['onerror', 'onclick', 'onload'],
 };
+
+function enhanceTablesForMobile(cleanHtml) {
+  if (!cleanHtml || !cleanHtml.includes('<table') || typeof document === 'undefined') {
+    return cleanHtml;
+  }
+  try {
+    const box = document.createElement('div');
+    box.innerHTML = cleanHtml;
+    const tables = box.querySelectorAll('table');
+    for (const table of tables) {
+      const headers = Array.from(table.querySelectorAll('thead th')).map((th) =>
+        (th.textContent || '').replace(/\s+/g, ' ').trim()
+      );
+      if (headers.some(Boolean)) {
+        table.classList.add('has-headers');
+        const rows = table.querySelectorAll('tbody tr');
+        for (const row of rows) {
+          const cells = row.querySelectorAll('td');
+          cells.forEach((td, idx) => {
+            if (headers[idx]) {
+              td.setAttribute('data-label', headers[idx]);
+            }
+          });
+        }
+      }
+      if (!table.parentElement || !table.parentElement.classList.contains('table-wrap')) {
+        const wrap = document.createElement('div');
+        wrap.className = 'table-wrap';
+        table.parentNode.insertBefore(wrap, table);
+        wrap.appendChild(table);
+      }
+    }
+    return box.innerHTML;
+  } catch {
+    return cleanHtml;
+  }
+}
 
 export function renderMarkdown(text) {
   const source = String(text ?? '');
   if (!source) return '';
   try {
     const raw = marked.parse(source);
-    return DOMPurify.sanitize(raw, SANITIZE_OPTS);
+    const clean = DOMPurify.sanitize(raw, SANITIZE_OPTS);
+    return enhanceTablesForMobile(clean);
   } catch {
     const fallback = escapeHtml(source).replace(/\r?\n/g, '<br />');
     return DOMPurify.sanitize(fallback, SANITIZE_OPTS);
