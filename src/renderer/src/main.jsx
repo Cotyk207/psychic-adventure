@@ -8,6 +8,7 @@ import './styles/chat.css';
 import './styles/panels.css';
 import './styles/dashboard.css';
 import './styles/settings.css';
+import './styles/mobile.css';
 import '@xterm/xterm/css/xterm.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(

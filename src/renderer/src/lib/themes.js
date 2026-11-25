@@ -13,10 +13,17 @@ export function wallpaperUrl(config, theme) {
   const appearance = config?.appearance || {};
   if (appearance.wallpaper === 'none') return null;
   let name = appearance.wallpaper;
+  if (typeof name === 'string' && (name.startsWith('data:') || name.startsWith('http://') || name.startsWith('https://') || name.startsWith('blob:'))) {
+    return name;
+  }
   if (!name || name === 'auto' || name === 'theme') {
     name = `${theme.id}.jpg`;
   }
   if (!/\.[a-z0-9]+$/i.test(name)) name += '.jpg';
+  const isElectronApp = typeof window !== 'undefined' && Boolean(window.psychic?.isElectron);
+  if (!isElectronApp) {
+    return `./wallpapers/${encodeURIComponent(name)}`;
+  }
   return `psychic://wallpaper/${encodeURIComponent(name)}`;
 }
 

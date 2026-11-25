@@ -1,4 +1,4 @@
-name: Build Windows EXE
+name: Build Windows EXE & Android APK
 
 on:
   push:
@@ -23,8 +23,6 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          # jsdom тянет undici, которому нужен zlib.createZstdDecompress —
-          # эта функция появилась в Node 22, на Node 20 импорт падает.
           node-version: '22'
           cache: 'npm'
 
@@ -44,7 +42,7 @@ jobs:
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
 
-      - name: UI smoke test (jsdom)
+      - name: UI + Fullstack + Android runtime smoke tests (jsdom)
         run: npm run smoke
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
@@ -76,26 +74,109 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
-      - name: List artifacts
+      - name: List Windows artifacts
         run: Get-ChildItem -Recurse release | Select-Object FullName, Length
 
-      - name: Upload installer artifact
+      - name: Upload Windows installer artifact
         uses: actions/upload-artifact@v4
         with:
           name: PSYCHIC-Windows-Installer
-          path: release/*.exe
+          path: |
+            release/*.exe
+            release/latest.yml
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish release (tags only)
-        if: startsWith(github.ref, 'refs/tags/v')
+  build-android:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Setup Java 17 for Android Gradle
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+
+      - name: Prepare web bundle & Capacitor Android assets
+        run: npm run build:android
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+
+      - name: Build signed Android APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Verify APK signature & stage release APK
+        run: |
+          VER=$(node -p "require('./package.json').version")
+          mkdir -p release-android
+          APK_SRC="android/app/build/outputs/apk/release/app-release.apk"
+          APK_DST="release-android/PSYCHIC-Android-${VER}.apk"
+          cp "$APK_SRC" "$APK_DST"
+          APKSIGNER=$(ls -1 "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -n 1)
+          "$APKSIGNER" verify --verbose "$APK_DST"
+          ls -lh "$APK_DST"
+
+      - name: Upload Android APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSYCHIC-Android-APK
+          path: release-android/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, build-android]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: PSYCHIC-Windows-Installer
+          path: dist-release
+
+      - name: Download Android APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: PSYCHIC-Android-APK
+          path: dist-release
+
+      - name: List all release files
+        run: ls -lh dist-release
+
+      - name: Publish GitHub Release (Windows EXE + Android APK)
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            release/*.exe
-            release/latest.yml
+            dist-release/*.exe
+            dist-release/*.apk
+            dist-release/latest.yml
           tag_name: ${{ github.ref_name }}
-          name: PSYCHIC ${{ github.ref_name }}
+          name: PSYCHIC ${{ github.ref_name }} (Windows + Android)
           generate_release_notes: true
           draft: false
           prerelease: false

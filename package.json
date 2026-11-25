@@ -1,7 +1,7 @@
 {
   "name": "psychic",
-  "version": "1.0.5",
-  "description": "PSYCHIC — киберпанк ИИ-ассистент для Windows с полным доступом к ПК",
+  "version": "1.0.6",
+  "description": "PSYCHIC — киберпанк ИИ-ассистент для Windows и Android",
   "main": "src/main/index.cjs",
   "author": "PSYCHIC",
   "license": "MIT",
@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "concurrently -k -n VITE,ELECTRON -c cyan,magenta \"vite\" \"wait-on tcp:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
     "build": "vite build",
+    "build:android": "node scripts/prepare-android.mjs",
     "start": "electron .",
     "dist": "npm run build && electron-builder --win --publish never",
     "dist:dir": "npm run build && electron-builder --win --dir --publish never",
@@ -30,6 +31,9 @@
     "react-dom": "18.3.1"
   },
   "devDependencies": {
+    "@capacitor/android": "^6.2.3",
+    "@capacitor/cli": "^6.2.3",
+    "@capacitor/core": "^6.2.3",
     "@vitejs/plugin-react": "4.3.4",
     "concurrently": "9.1.0",
     "cross-env": "7.0.3",

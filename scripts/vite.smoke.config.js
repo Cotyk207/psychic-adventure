@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
+import { psychicAssetsPlugin } from './vite-psychic-plugin.mjs';
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -9,7 +10,7 @@ const ROOT = path.resolve(__dirname, '..');
 export default defineConfig({
   root: path.resolve(ROOT, 'src/renderer'),
   base: './',
-  plugins: [react()],
+  plugins: [react(), psychicAssetsPlugin()],
   resolve: {
     alias: {
       '@': path.resolve(ROOT, 'src/renderer/src'),
