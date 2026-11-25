@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="400" viewBox="0 0 1280 400" role="img" aria-labelledby="title desc">
+  <title id="title">PSYCHIC — пространство для идей</title>
+  <desc id="desc">Абстрактный неоновый баннер проекта PSYCHIC</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0b1124"/><stop offset=".58" stop-color="#10132b"/><stop offset="1" stop-color="#18122b"/></linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#79e4e2"/><stop offset="1" stop-color="#a58afa"/></linearGradient>
+    <radialGradient id="glow"><stop stop-color="#6fd4d5" stop-opacity=".22"/><stop offset="1" stop-color="#6fd4d5" stop-opacity="0"/></radialGradient>
+    <pattern id="grid" width="42" height="42" patternUnits="userSpaceOnUse"><path d="M42 0H0V42" fill="none" stroke="#a3bdf5" stroke-opacity=".07"/></pattern>
+  </defs>
+  <rect width="1280" height="400" rx="24" fill="url(#bg)"/><rect width="1280" height="400" rx="24" fill="url(#grid)"/>
+  <ellipse cx="970" cy="200" rx="400" ry="260" fill="url(#glow)"/>
+  <path d="M0 348 C360 254 620 450 1280 265V400H0Z" fill="#a786f9" fill-opacity=".045"/>
+  <circle cx="1020" cy="200" r="118" fill="none" stroke="#94d8e7" stroke-opacity=".23"/>
+  <circle cx="1020" cy="200" r="88" fill="none" stroke="#94d8e7" stroke-opacity=".28"/>
+  <circle cx="1020" cy="200" r="56" fill="none" stroke="url(#accent)" stroke-width="2"/>
+  <path d="M1020 125v150M945 200h150M967 147l106 106M1073 147L967 253" fill="none" stroke="#a8c9ed" stroke-opacity=".20"/>
+  <circle cx="1020" cy="200" r="20" fill="url(#accent)"/><circle cx="1020" cy="82" r="5" fill="#8ce4dd"/><circle cx="1108" cy="200" r="5" fill="#a990fa"/><circle cx="951" cy="255" r="4" fill="#86e4de"/>
+  <rect x="82" y="68" width="190" height="32" rx="16" fill="#8be5dd" fill-opacity=".10" stroke="#8be5dd" stroke-opacity=".28"/>
+  <text x="101" y="89" fill="#a4e9e3" font-family="Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="2">YOUR AI WORKSPACE</text>
+  <text x="82" y="180" fill="#f0f3ff" font-family="Arial, sans-serif" font-size="70" font-weight="700" letter-spacing="8">PSYCHIC</text>
+  <text x="85" y="225" fill="#c3d0e9" font-family="Arial, sans-serif" font-size="25">Пространство для идей, задач и экспериментов</text>
+  <path d="M84 261h72" stroke="url(#accent)" stroke-width="4" stroke-linecap="round"/>
+  <text x="85" y="309" fill="#8e9dbb" font-family="Arial, sans-serif" font-size="16" letter-spacing="1">WINDOWS   /   ANDROID   /   AI</text>
+  <rect x=".5" y=".5" width="1279" height="399" rx="23.5" fill="none" stroke="#bdc8ec" stroke-opacity=".15"/>
+</svg>
