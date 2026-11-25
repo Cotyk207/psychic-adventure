@@ -1118,3 +1118,44 @@ test('media: hordeImage отправляет Client-Agent и сжимает ан
 
 
 
+
+test('новые безключевые провайдеры: миграция, безопасный каталог и анонимные запросы', async () => {
+  const presets = require('../src/shared/providers.json');
+  const { filterFreeModels } = require('../src/main/lib/models.cjs');
+  const { syncPresets } = require('../src/main/lib/store.cjs');
+  const adapter = require('../src/main/providers/openai.cjs');
+  const old = { providers: [{ id: 'pollinations', enabled: false, apiKey: '', models: ['openai'], presetVersion: 5 }], chat: { defaultProvider: 'pollinations', defaultModel: 'openai' } };
+  const migrated = syncPresets(old);
+  assert.equal(migrated.providers.find(p => p.id === 'pollinations').enabled, false);
+  assert.equal(migrated.chat.defaultModel, 'openai');
+  const specs = [
+    ['kilo', ['kilo-auto/free', 'nvidia/test:free', 'openai/paid'], ['kilo-auto/free', 'nvidia/test:free']],
+    ['ovhcloud', ['gpt-oss-20b', 'whisper-large-v3', 'unknown'], ['gpt-oss-20b']],
+    ['blockrun', ['nvidia/gpt-oss-20b', 'openai/gpt-6.2-astra', 'nvidia/unknown'], ['nvidia/gpt-oss-20b']],
+  ];
+  const originalFetch = globalThis.fetch;
+  try {
+    for (const [id, incoming, expected] of specs) {
+      const provider = migrated.providers.find(p => p.id === id);
+      assert.equal(provider.enabled, true);
+      assert.equal(provider.noKey, true);
+      assert.deepEqual(filterFreeModels(id, incoming), expected);
+      assert.ok(presets.providers.find(p => p.id === id).models.includes(provider.defaultModel));
+      const calls = [];
+      globalThis.fetch = async (url, init) => {
+        calls.push({ url, init });
+        if (url.endsWith('/models')) return new Response(JSON.stringify({ data: incoming.map(id => ({ id })) }), { status: 200 });
+        return sseResponse(['data: {"choices":[{"delta":{"content":"Ответ"}}]}\n\ndata: [DONE]\n\n']);
+      };
+      assert.deepEqual(await adapter.listModels(provider), expected);
+      const events = [];
+      for await (const event of adapter.streamOpenAI({ provider, model: provider.defaultModel, messages: [{ role: 'user', content: 'Привет' }] })) events.push(event);
+      assert.equal(events.some(event => event.type === 'text' && event.text === 'Ответ'), true);
+      assert.equal(calls[1].url, `${provider.baseUrl}/chat/completions`);
+      assert.equal(calls[1].init.headers.Authorization, undefined);
+      assert.equal(JSON.parse(calls[1].init.body).model, provider.defaultModel);
+    }
+    assert.equal(adapter.buildHeaders({ id: 'ovhcloud', apiKey: 'secret', extraHeaders: { authorization: 'Bearer secret' } }).authorization, undefined);
+    assert.equal(adapter.buildHeaders({ id: 'ovhcloud', apiKey: 'secret' }).Authorization, undefined);
+  } finally { globalThis.fetch = originalFetch; }
+});

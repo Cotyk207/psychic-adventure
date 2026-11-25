@@ -6,7 +6,7 @@ const zlib = require('zlib');
 const { get } = require('../lib/paths.cjs');
 const { uid, sleep, truncate, formatBytes } = require('../lib/util.cjs');
 
-const HORDE_CLIENT_AGENT = 'PSYCHIC:1.0.9:github.com/Cotyk207/psychic-adventure';
+const HORDE_CLIENT_AGENT = 'PSYCHIC:1.0.10:github.com/Cotyk207/psychic-adventure';
 
 const STYLE_PRESETS = {
   auto: '',

@@ -37,7 +37,10 @@ export default function ChatView() {
 
   useEffect(() => {
     const el = scrollRef.current;
-    if (el && stickRef.current) {
+    if (!el) return;
+    if (!messages.length) {
+      el.scrollTop = 0;
+    } else if (stickRef.current) {
       el.scrollTop = el.scrollHeight;
     }
   }, [messages.length, streaming?.text?.length, streaming?.toolCalls?.length]);

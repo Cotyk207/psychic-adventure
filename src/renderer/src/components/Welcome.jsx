@@ -3,6 +3,7 @@ import { useApp } from '../lib/store';
 import { isAndroidApp } from '../lib/api';
 import { cn } from '../lib/utils';
 import Icon from './Icon';
+import Logo from './Logo';
 
 const SUGGESTIONS = [
   {
@@ -57,17 +58,13 @@ export default function Welcome() {
 
   return (
     <div className="welcome">
-      <div className="welcome-badge">
-        <span className="status-dot" style={{ animation: 'none' }} />
-        NEURAL LINK ESTABLISHED
-      </div>
-      <h1 className="welcome-logo" data-text="PSYCHIC">
-        PSYCHIC
-      </h1>
+      <div className="welcome-emblem" aria-hidden="true"><Logo size={34} /></div>
+      <div className="welcome-badge">ТВОЁ ПРОСТРАНСТВО ДЛЯ ИДЕЙ</div>
+      <h1 className="welcome-logo">Привет! Что создадим?</h1>
       <p className="welcome-sub">
         {isAndroidApp()
-          ? 'Автономный ИИ-ассистент на твоём смартфоне. Пиши код, ищи в интернете, создавай файлы, картинки и музыку — всё в одном неоновом интерфейсе.'
-          : 'Локальный ИИ-ассистент с доступом к твоему компьютеру. Пиши код, создавай приложения, ищи в интернете, генерируй картинки и музыку — всё в одном неоновом интерфейсе.'}
+          ? 'Задавай вопросы, работай с файлами и воплощай идеи — прямо со смартфона.'
+          : 'Задавай вопросы, работай с файлами и воплощай идеи — всё в одном месте.'}
       </p>
 
       <div className="welcome-stats">
@@ -144,6 +141,7 @@ export default function Welcome() {
         )}
       </div>
 
+      <div className="welcome-section-head"><span>С чего начать</span><span>Выбери идею или напиши свою</span></div>
       <div className="suggestions">
         {SUGGESTIONS.map((s) => (
           <button

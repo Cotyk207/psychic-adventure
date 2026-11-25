@@ -6,6 +6,7 @@ const path = require('path');
 const os = require('os');
 const store = require('./lib/store.cjs');
 const paths = require('./lib/paths.cjs');
+const { filterFreeModels } = require('./lib/models.cjs');
 const logger = require('./lib/logger.cjs');
 const providers = require('./providers/index.cjs');
 const files = require('./tools/files.cjs');
@@ -245,6 +246,7 @@ function registerIpc(deps) {
   handle('providers:save', ({ provider }) => {
     const list = store.get('providers') || [];
     const item = { ...provider };
+    if (Array.isArray(item.models)) item.models = filterFreeModels(item.id, item.models);
     if (!item.id) item.id = store.newProviderId();
     const idx = list.findIndex((p) => p.id === item.id);
     if (idx >= 0) list[idx] = { ...list[idx], ...item };

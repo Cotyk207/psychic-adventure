@@ -1,5 +1,5 @@
 {
-  "version": 5,
+  "version": 6,
   "providers": [
     {
       "id": "opencode",
@@ -55,6 +55,85 @@
         "gemini-fast"
       ],
       "defaultModel": "openai",
+      "modelFetch": "openai",
+      "builtin": true
+    },
+    {
+      "id": "kilo",
+      "name": "Kilo AI Gateway",
+      "tagline": "Бесплатные модели и авто-выбор без ключа · до 200 запросов/час на IP",
+      "type": "openai",
+      "accessType": "nokey",
+      "noKey": true,
+      "free": true,
+      "badge": "БЕЗ КЛЮЧА · FREE",
+      "color": "#a78bfa",
+      "baseUrl": "https://ai-gateway.kilo.ai/api/v1",
+      "docsUrl": "https://kilo.ai/docs/gateway/models-and-providers",
+      "keyUrl": "",
+      "keyHint": "Ключ не нужен для бесплатных моделей. Лимит: 200 запросов в час на IP; список меняется. Запросы могут сохраняться поставщиками моделей — не отправляй секреты.",
+      "models": [
+        "kilo-auto/free",
+        "baidu/ernie-5.5-flash-preview:free",
+        "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "nvidia/nemotron-3.5-super-vl:free"
+      ],
+      "defaultModel": "kilo-auto/free",
+      "modelFetch": "openai",
+      "builtin": true
+    },
+    {
+      "id": "ovhcloud",
+      "name": "OVHcloud AI Endpoints",
+      "tagline": "Модели Qwen, Llama и GPT-OSS без ключа · 2 запроса/мин на IP и модель",
+      "type": "openai",
+      "accessType": "nokey",
+      "noKey": true,
+      "free": true,
+      "badge": "БЕЗ КЛЮЧА · FREE",
+      "color": "#56a8ff",
+      "baseUrl": "https://oai.endpoints.kepler.ai.cloud.ovh.net/v1",
+      "docsUrl": "https://help.ovhcloud.com/csm/en-public-cloud-ai-endpoints-getting-started?id=kb_article_view&sysparm_article=KB0065403",
+      "keyUrl": "",
+      "keyHint": "Анонимный доступ без ключа: 2 запроса в минуту на IP для каждой модели.",
+      "models": [
+        "gpt-oss-20b",
+        "Qwen3.8-27B",
+        "Meta-Llama-3_3-70B-Instruct",
+        "Qwen2.5-VL-72B-Instruct",
+        "gpt-oss-120b",
+        "Qwen3.6-27B",
+        "qwen3.6-35b-a3b",
+        "Qwen3.5-397B-A17B",
+        "DeepSeek-V4.1-Flash-1017",
+        "Mistral-Small-3.2-24B-Instruct-2506",
+        "nemotron3-nano-30b",
+        "nemotron3-omni-30b"
+      ],
+      "defaultModel": "gpt-oss-20b",
+      "modelFetch": "openai",
+      "builtin": true
+    },
+    {
+      "id": "blockrun",
+      "name": "BlockRun (Free)",
+      "tagline": "Бесплатные модели GPT-OSS и Nemotron без ключа",
+      "type": "openai",
+      "accessType": "nokey",
+      "noKey": true,
+      "free": true,
+      "badge": "БЕЗ КЛЮЧА · FREE",
+      "color": "#f7aa55",
+      "baseUrl": "https://blockrun.ai/api/v1",
+      "docsUrl": "https://blockrun.ai/free",
+      "keyUrl": "",
+      "keyHint": "Ключ и кошелёк не нужны только для выбранных бесплатных моделей. Доступность и лимиты могут меняться.",
+      "models": [
+        "nvidia/gpt-oss-20b",
+        "nvidia/nemotron-3.5-lightning",
+        "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
+      ],
+      "defaultModel": "nvidia/gpt-oss-20b",
       "modelFetch": "openai",
       "builtin": true
     },

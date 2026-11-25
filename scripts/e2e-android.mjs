@@ -152,6 +152,17 @@ window.PsychicAndroid = {
         return;
       }
 
+      if (url.endsWith('/models')) {
+        const ids = url.includes('kilo.ai')
+          ? ['kilo-auto/free', 'nvidia/test:free', 'openai/paid']
+          : url.includes('ovh.net')
+            ? ['gpt-oss-20b', 'whisper-large-v3']
+            : ['nvidia/gpt-oss-20b', 'openai/gpt-6.2-astra'];
+        window.__psychicNativeEvent({ reqId, event: 'chunk', status: 200, data: JSON.stringify({ data: ids.map(id => ({ id })) }) });
+        window.__psychicNativeEvent({ reqId, event: 'end', status: 200 });
+        return;
+      }
+
       if (url.endsWith('/chat/completions')) {
         streamTurn += 1;
         if (streamTurn === 1) {
@@ -223,10 +234,21 @@ const clickButton = (label, exact = false) => {
   return true;
 };
 
+// Simulate upgrading a v1.0.9 installation rather than only a fresh install.
+localStorage.setItem('psychic:mobile:v4:config', JSON.stringify({
+  presetVersion: 5,
+  providers: [{ id: 'pollinations', enabled: false, models: ['openai'], presetVersion: 5 }],
+  general: { userName: 'Android user' },
+}));
+
 await import(new URL('../.smoke/smoke-entry.mjs', import.meta.url));
 await wait(1350);
 
 check('android: mobileBridge auto-initialized (platform=android)', window.psychic?.platform === 'android' && window.psychic?.isElectron === false);
+const upgradedProviders = await window.psychic.invoke('providers:list');
+check('android: upgrade preserves disabled providers and enables new anonymous providers',
+  upgradedProviders.find(p => p.id === 'pollinations')?.enabled === false &&
+  ['kilo', 'ovhcloud', 'blockrun'].every(id => upgradedProviders.some(p => p.id === id && p.enabled && p.noKey)));
 check('android: desktop window controls hidden on phone', !document.querySelector('.window-controls'));
 check('android: onboarding rendered & completed', clickButton('Начать работу'));
 await wait(250);
@@ -284,11 +306,14 @@ check('android: built-in reader mode works without Electron WebContentsView', ht
 clickButton('Чат', true);
 await wait(250);
 
+check('android: welcome opens at the top', Boolean(document.querySelector('.welcome')) && document.querySelector('.chat-scroll')?.scrollTop === 0);
+
 // Выбираем модель с поддержкой глубины рассуждений и включаем «Максимум»
 const modelPill = document.querySelector('.model-pill');
 if (modelPill) modelPill.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
 await wait(220);
 check('android: free-only OpenCode models available out of the box', html().includes('OpenCode Console') && html().includes('Tidepool Alpha Free'));
+check('android: new anonymous providers visible in model picker', ['Kilo AI Gateway', 'OVHcloud AI Endpoints', 'BlockRun (Free)'].every(name => html().includes(name)));
 const tidepool = [...document.querySelectorAll('.picker-model-item')].find((el) => (el.textContent || '').includes('Tidepool Alpha Free'));
 if (tidepool) tidepool.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
 await wait(200);
@@ -342,6 +367,24 @@ check(
     Boolean(document.querySelector('.msg-content td[data-label="КАК ЗАДАТЬ"]')) &&
     Boolean(document.querySelector('.composer .send-btn'))
 );
+
+// Exercise catalog filtering and complete chat requests through the native bridge.
+for (const [id, expected] of [
+  ['kilo', ['kilo-auto/free', 'nvidia/test:free']],
+  ['ovhcloud', ['gpt-oss-20b']],
+  ['blockrun', ['nvidia/gpt-oss-20b']],
+]) {
+  const provider = (await window.psychic.invoke('providers:list')).find(p => p.id === id);
+  const models = await window.psychic.invoke('providers:fetchModels', { provider });
+  check(`android: ${id} filters catalog`, JSON.stringify(models) === JSON.stringify(expected));
+  const chat = await window.psychic.invoke('chats:create', { provider: id, model: provider.defaultModel });
+  await window.psychic.invoke('agent:send', { chatId: chat.id, text: 'Привет' });
+  const call = capturedHttpCalls.find(c => c.url === `${provider.baseUrl}/chat/completions`);
+  const saved = await window.psychic.invoke('chats:get', { id: chat.id });
+  check(`android: ${id} sends anonymous chat and stores response`,
+    !!call && !call.headers.Authorization && call.body.model === provider.defaultModel &&
+    saved.messages.some(m => m.role === 'assistant' && m.content.includes('Файл phone-note.txt')));
+}
 
 console.error = origErr;
 
