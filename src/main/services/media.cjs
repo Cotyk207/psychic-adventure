@@ -2,8 +2,11 @@
 
 const fs = require('fs');
 const path = require('path');
+const zlib = require('zlib');
 const { get } = require('../lib/paths.cjs');
 const { uid, sleep, truncate, formatBytes } = require('../lib/util.cjs');
+
+const HORDE_CLIENT_AGENT = 'PSYCHIC:1.0.7:github.com/Cotyk207/psychic-adventure';
 
 const STYLE_PRESETS = {
   auto: '',
@@ -64,56 +67,215 @@ function resolveRendererTask(payload) {
   return true;
 }
 
-async function pollinationsImage(prompt, { width, height, seed, model = 'flux' }) {
-  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}`
-    + `?width=${width}&height=${height}&seed=${seed}&nologo=true&enhance=true`
-    + `&model=${encodeURIComponent(model)}&referrer=psychic`;
-  const res = await fetch(url, { signal: AbortSignal.timeout(180000) });
-  if (!res.ok) throw new Error(`Pollinations HTTP ${res.status}`);
-  const mime = res.headers.get('content-type') || 'image/jpeg';
-  return { buffer: Buffer.from(await res.arrayBuffer()), mime, ext: extFromMime(mime) };
+const CRC_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+    table[n] = c >>> 0;
+  }
+  return table;
+})();
+
+function crc32(buf) {
+  let c = 0xffffffff;
+  for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
 }
 
-async function hordeImage(prompt, { width, height, negative }) {
-  const API = 'https://stablehorde.net/api/v2';
-  const key = '0000000000';
+function pngChunk(type, data) {
+  const typeBuf = Buffer.from(type, 'ascii');
+  const lenBuf = Buffer.alloc(4);
+  lenBuf.writeUInt32BE(data.length, 0);
+  const crcBuf = Buffer.alloc(4);
+  crcBuf.writeUInt32BE(crc32(Buffer.concat([typeBuf, data])), 0);
+  return Buffer.concat([lenBuf, typeBuf, data, crcBuf]);
+}
+
+function proceduralPngBuffer(prompt = '', { width = 512, height = 512 } = {}) {
+  const w = Math.min(768, Math.max(128, Number(width) || 512));
+  const h = Math.min(768, Math.max(128, Number(height) || 512));
+  let seed = 2166136261;
+  const s = String(prompt || 'PSYCHIC');
+  for (let i = 0; i < s.length; i++) seed = Math.imul(seed ^ s.charCodeAt(i), 16777619) >>> 0;
+  const accentR = 180 + (seed & 0x3f);
+  const accentB = 200 + ((seed >>> 6) & 0x37);
+
+  const stride = w * 3 + 1;
+  const raw = Buffer.alloc(stride * h);
+  const horizon = Math.floor(h * 0.62);
+  const sunX = Math.floor(w * (0.35 + ((seed & 0xff) / 255) * 0.3));
+  const sunY = Math.floor(horizon - h * 0.08);
+  const sunR2 = Math.floor((Math.min(w, h) * 0.18) ** 2);
+
+  for (let y = 0; y < h; y++) {
+    const rowOff = y * stride;
+    raw[rowOff] = 0; // filter None
+    const isFloor = y >= horizon;
+    const t = isFloor ? (y - horizon) / Math.max(1, h - horizon) : y / Math.max(1, horizon);
+    for (let x = 0; x < w; x++) {
+      let r;
+      let g;
+      let b;
+      if (!isFloor) {
+        r = Math.round(8 + t * 44);
+        g = Math.round(6 + t * 18);
+        b = Math.round(24 + t * 68);
+        const dx = x - sunX;
+        const dy = y - sunY;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < sunR2) {
+          const glow = 1 - d2 / sunR2;
+          r = Math.min(255, Math.round(r + glow * accentR));
+          g = Math.min(255, Math.round(g + glow * 70));
+          b = Math.min(255, Math.round(b + glow * 150));
+        }
+      } else {
+        const gridY = Math.abs(((t ** 0.55) * 14) % 1) < 0.08;
+        const perspectiveX = ((x - w * 0.5) / Math.max(0.12, t)) / (w * 0.09);
+        const gridX = Math.abs(perspectiveX - Math.round(perspectiveX)) < 0.06;
+        if (gridX || gridY) {
+          r = 16;
+          g = 225;
+          b = accentB;
+        } else {
+          r = Math.round(18 * (1 - t));
+          g = Math.round(8 * (1 - t));
+          b = Math.round(32 * (1 - t) + 10);
+        }
+      }
+      const p = rowOff + 1 + x * 3;
+      raw[p] = r;
+      raw[p + 1] = g;
+      raw[p + 2] = b;
+    }
+  }
+
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(w, 0);
+  ihdr.writeUInt32BE(h, 4);
+  ihdr[8] = 8; // bit depth
+  ihdr[9] = 2; // RGB
+  const compressed = zlib.deflateSync(raw, { level: 6 });
+  const sig = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+  return {
+    buffer: Buffer.concat([sig, pngChunk('IHDR', ihdr), pngChunk('IDAT', compressed), pngChunk('IEND', Buffer.alloc(0))]),
+    mime: 'image/png',
+    ext: 'png',
+  };
+}
+
+function clampHordeDim(val, isAnon) {
+  const max = isAnon ? 512 : 1024;
+  const clamped = Math.min(max, Math.max(256, Number(val) || 512));
+  return Math.max(256, Math.round(clamped / 64) * 64);
+}
+
+async function pollinationsImage(prompt, { width, height, seed, model = 'flux', apiKey = '' }) {
+  const encoded = encodeURIComponent(prompt);
+  const query = `?width=${width}&height=${height}&seed=${seed}&nologo=true&model=${encodeURIComponent(model)}`;
+  const urls = apiKey
+    ? [
+        { url: `https://gen.pollinations.ai/image/${encoded}${query}`, headers: { Authorization: `Bearer ${apiKey}` } },
+        { url: `https://image.pollinations.ai/prompt/${encoded}${query}&referrer=psychic`, headers: {} },
+      ]
+    : [
+        { url: `https://image.pollinations.ai/prompt/${encoded}${query}&referrer=psychic`, headers: {} },
+      ];
+
+  let lastErr = null;
+  for (const candidate of urls) {
+    try {
+      const res = await fetch(candidate.url, {
+        headers: candidate.headers,
+        signal: AbortSignal.timeout(35000),
+      });
+      if (!res.ok) throw new Error(`Pollinations HTTP ${res.status}`);
+      const mime = res.headers.get('content-type') || 'image/jpeg';
+      const buffer = Buffer.from(await res.arrayBuffer());
+      if (buffer.length < 64) throw new Error('Pollinations вернул пустой ответ');
+      return { buffer, mime, ext: extFromMime(mime) };
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr || new Error('Pollinations недоступен');
+}
+
+async function hordeImage(prompt, { width, height, negative, apiKey = '' }) {
+  const key = String(apiKey || '').trim() || '0000000000';
+  const isAnon = key === '0000000000';
+  const w = clampHordeDim(width, isAnon);
+  const h = clampHordeDim(height, isAnon);
+  const commonHeaders = {
+    'Content-Type': 'application/json',
+    apikey: key,
+    'Client-Agent': HORDE_CLIENT_AGENT,
+  };
   const body = {
     prompt: `${prompt} ### ${negative || NEGATIVE}`,
     params: {
-      s: String(Date.now() % 100000), steps: 24, width, height,
-      cfg_scale: 7, sampler_name: 'k_euler', n: 1,
+      steps: isAnon ? 20 : 24,
+      width: w,
+      height: h,
+      cfg_scale: 7,
+      sampler_name: 'k_euler',
+      n: 1,
     },
     nsfw: false,
     censor_nsfw: true,
-    models: ['stable_diffusion'],
+    models: ['AlbedoBase XL (SDXL)', 'ICBINP - I Can\'t Believe It\'s Not Photography', 'stable_diffusion'],
     r2: true,
   };
-  const res = await fetch(`${API}/generate/async`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', apikey: key },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(30000),
-  });
-  if (!res.ok) throw new Error(`Stable Horde HTTP ${res.status}`);
-  const { id } = await res.json();
-  if (!id) throw new Error('Stable Horde не принял запрос');
 
-  for (let i = 0; i < 80; i++) {
+  let baseApi = 'https://aihorde.net/api/v2';
+  let res = await fetch(`${baseApi}/generate/async`, {
+    method: 'POST',
+    headers: commonHeaders,
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(25000),
+  }).catch(() => null);
+
+  if (!res || !res.ok) {
+    // Пробуем резервный домен и только базовую модель stable_diffusion (минимальный расход kudos)
+    baseApi = 'https://stablehorde.net/api/v2';
+    body.models = ['stable_diffusion'];
+    res = await fetch(`${baseApi}/generate/async`, {
+      method: 'POST',
+      headers: commonHeaders,
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(25000),
+    });
+  }
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    throw new Error(`AI Horde HTTP ${res.status}${errText ? `: ${truncate(errText, 180)}` : ''}`);
+  }
+  const { id } = await res.json();
+  if (!id) throw new Error('AI Horde не принял запрос');
+
+  const statusHeaders = { apikey: key, 'Client-Agent': HORDE_CLIENT_AGENT };
+  for (let i = 0; i < 45; i++) {
     await sleep(3000);
-    const check = await fetch(`${API}/generate/check/${id}`, { headers: { apikey: key } });
+    const check = await fetch(`${baseApi}/generate/check/${id}`, { headers: statusHeaders });
+    if (!check.ok) continue;
     const status = await check.json();
-    if (status.faulted) throw new Error('Stable Horde: генерация не удалась');
+    if (status.faulted) throw new Error('AI Horde: генерация не удалась');
     if (status.done) {
-      const done = await fetch(`${API}/generate/status/${id}`, { headers: { apikey: key } });
+      const done = await fetch(`${baseApi}/generate/status/${id}`, { headers: statusHeaders });
       const json = await done.json();
-      const imageUrl = json.generations?.[0]?.img;
-      if (!imageUrl) throw new Error('Stable Horde: пустой результат');
-      const img = await fetch(imageUrl);
-      const mime = img.headers.get('content-type') || 'image/png';
-      return { buffer: Buffer.from(await img.arrayBuffer()), mime, ext: extFromMime(mime) };
+      const imageVal = json.generations?.[0]?.img;
+      if (!imageVal) throw new Error('AI Horde: пустой результат');
+      if (/^https?:\/\//i.test(imageVal)) {
+        const img = await fetch(imageVal);
+        const mime = img.headers.get('content-type') || 'image/webp';
+        return { buffer: Buffer.from(await img.arrayBuffer()), mime, ext: extFromMime(mime) };
+      }
+      return { buffer: Buffer.from(imageVal, 'base64'), mime: 'image/webp', ext: 'webp' };
     }
   }
-  throw new Error('Stable Horde: очередь слишком долгая, попробуй ещё раз');
+  throw new Error('AI Horde: очередь слишком долгая, попробуй ещё раз');
 }
 
 async function openAiImage(prompt, { width, height, baseUrl, apiKey, model }) {
@@ -242,8 +404,14 @@ class MediaService {
     this.send = send;
   }
 
+  async renderProceduralImage({ prompt, width, height }) {
+    return proceduralPngBuffer(prompt, { width, height });
+  }
+
   async generateImage({ prompt, style = 'auto', width, height, count = 1 }, { signal } = {}) {
     const cfg = this.store.get('media') || {};
+    const providersList = this.store.get('providers') || [];
+    const polliProvider = providersList.find((p) => p.id === 'pollinations');
     const provider = cfg.imageProvider || 'pollinations';
     const w = Math.min(2048, Math.max(256, Number(width) || cfg.defaultWidth || 1024));
     const h = Math.min(2048, Math.max(256, Number(height) || cfg.defaultHeight || 1024));
@@ -254,11 +422,36 @@ class MediaService {
     const files = [];
     for (let i = 0; i < total; i++) {
       if (signal?.aborted) throw new Error('Отменено');
+      const seed = Math.floor(Math.random() * 1e9);
       let result;
-      if (provider === 'pollinations') {
-        result = await pollinationsImage(fullPrompt, { width: w, height: h, seed: Math.floor(Math.random() * 1e9), model: cfg.imageModel || 'flux' });
+      let usedProvider = provider;
+      if (provider === 'procedural') {
+        result = await this.renderProceduralImage({ prompt: fullPrompt, style, width: w, height: h, seed });
+      } else if (provider === 'pollinations') {
+        try {
+          result = await pollinationsImage(fullPrompt, {
+            width: w,
+            height: h,
+            seed,
+            model: cfg.imageModel || 'flux',
+            apiKey: polliProvider?.apiKey || '',
+          });
+        } catch {
+          try {
+            usedProvider = 'stablehorde';
+            result = await hordeImage(fullPrompt, { width: w, height: h, negative: NEGATIVE });
+          } catch {
+            usedProvider = 'procedural';
+            result = await this.renderProceduralImage({ prompt: fullPrompt, style, width: w, height: h, seed });
+          }
+        }
       } else if (provider === 'stablehorde') {
-        result = await hordeImage(fullPrompt, { width: w, height: h, negative: NEGATIVE });
+        try {
+          result = await hordeImage(fullPrompt, { width: w, height: h, negative: NEGATIVE });
+        } catch {
+          usedProvider = 'procedural';
+          result = await this.renderProceduralImage({ prompt: fullPrompt, style, width: w, height: h, seed });
+        }
       } else if (provider === 'openai') {
         result = await openAiImage(fullPrompt, { width: w, height: h, baseUrl: cfg.imageBaseUrl, apiKey: cfg.imageApiKey, model: cfg.imageModel });
       } else if (provider === 'huggingface') {
@@ -268,9 +461,10 @@ class MediaService {
       }
       const name = `image-${Date.now()}-${i}.${result.ext}`;
       const file = path.join(get().images, name);
+      fs.mkdirSync(path.dirname(file), { recursive: true });
       fs.writeFileSync(file, result.buffer);
       const dataUrl = `data:${result.mime};base64,${result.buffer.toString('base64')}`;
-      files.push({ path: file, name, mime: result.mime, size: result.buffer.length, dataUrl, width: w, height: h, prompt: fullPrompt, provider });
+      files.push({ path: file, name, mime: result.mime, size: result.buffer.length, dataUrl, width: w, height: h, prompt: fullPrompt, provider: usedProvider });
     }
     return {
       files,
@@ -408,7 +602,8 @@ class MediaService {
 }
 
 module.exports = {
-  MediaService, resolveRendererTask, STYLE_PRESETS,
+  MediaService, resolveRendererTask, STYLE_PRESETS, HORDE_CLIENT_AGENT,
   pollinationsImage, hordeImage, openAiImage, huggingFaceImage,
   huggingFaceMusic, replicateMusic, replicateVideo, replicatePredict,
+  proceduralPngBuffer, clampHordeDim,
 };

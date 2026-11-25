@@ -8,6 +8,18 @@ function resolveBridge() {
   return mobile;
 }
 
+export function cleanIpcErrorMessage(raw) {
+  let msg = String(raw ?? '').trim();
+  // Убираем префикс Electron ipcRenderer.invoke: "Error invoking remote method 'channel': Error: ..."
+  while (/^Error invoking remote method '[^']+':\s*/i.test(msg)) {
+    msg = msg.replace(/^Error invoking remote method '[^']+':\s*/i, '');
+  }
+  while (/^(?:Error|TypeError|RangeError):\s*/i.test(msg)) {
+    msg = msg.replace(/^(?:Error|TypeError|RangeError):\s*/i, '');
+  }
+  return msg.trim() || 'Неизвестная ошибка';
+}
+
 export const bridge = resolveBridge();
 
 export const hasBridge = !!bridge;
@@ -20,7 +32,14 @@ export async function invoke(channel, payload) {
   if (!b) {
     throw new Error('PSYCHIC API недоступен');
   }
-  return b.invoke(channel, payload);
+  try {
+    return await b.invoke(channel, payload);
+  } catch (err) {
+    const cleaned = new Error(cleanIpcErrorMessage(err?.message || err));
+    if (err?.code) cleaned.code = err.code;
+    if (err?.status) cleaned.status = err.status;
+    throw cleaned;
+  }
 }
 
 export function on(channel, callback) {

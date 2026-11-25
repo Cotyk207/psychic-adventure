@@ -198,6 +198,14 @@ function syncPresets(config) {
     config.chat.defaultProvider = 'opencode';
     config.chat.defaultModel = 'tidepool-alpha-free';
   }
+  if (config.chat?.defaultProvider === 'pollinations' && /^(deepseek|llama|openai-reasoning)/i.test(String(config.chat?.defaultModel || ''))) {
+    config.chat.defaultModel = 'openai';
+  }
+  if (config.permissions && Array.isArray(config.permissions.roots)) {
+    const dirs = get();
+    const extraRoots = [dirs.workspace, dirs.desktop, dirs.documents, dirs.downloads].filter(Boolean);
+    config.permissions.roots = Array.from(new Set([...config.permissions.roots, ...extraRoots]));
+  }
   return config;
 }
 

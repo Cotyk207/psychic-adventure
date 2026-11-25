@@ -721,4 +721,57 @@ test('agent:send передаёт reasoningEffort, сохраняет рассу
   }
 });
 
+test('agent:send при 429 FreeUsageLimitError на OpenCode автоматически переключается на бесплатный Pollinations.AI', async () => {
+  const originalFetch = globalThis.fetch;
+  const hitUrls = [];
+  globalThis.fetch = async (url) => {
+    const u = String(url);
+    hitUrls.push(u);
+    if (u.includes('opencode.ai')) {
+      return new Response(
+        '{"type":"error","error":{"type":"FreeUsageLimitError","message":"Free usage limit reached."}}',
+        { status: 429 }
+      );
+    }
+    const stream = new ReadableStream({
+      start(c) {
+        c.enqueue(new TextEncoder().encode('data: {"choices":[{"delta":{"content":"Ответ с резервного Pollinations!"}}]}\n\n'));
+        c.enqueue(new TextEncoder().encode('data: [DONE]\n\n'));
+        c.close();
+      },
+    });
+    return new Response(stream, { status: 200 });
+  };
+
+  const chat = await call('chats:create', { provider: 'opencode', model: 'tidepool-alpha-free' });
+  try {
+    const res = await call('agent:send', { chatId: chat.id, text: 'Привет!' });
+    assert.equal(res.ok, true);
+    assert.ok(hitUrls.some((u) => u.includes('opencode.ai')));
+    assert.ok(hitUrls.some((u) => u.includes('pollinations.ai')));
+    const saved = await call('chats:get', { id: chat.id });
+    const reply = saved.messages.find((m) => m.role === 'assistant');
+    assert.equal(reply.provider, 'pollinations');
+    assert.equal(reply.content, 'Ответ с резервного Pollinations!');
+  } finally {
+    globalThis.fetch = originalFetch;
+    await call('chats:delete', { id: chat.id });
+  }
+});
+
+test('media:generateImage при недоступности облака создаёт валидный процедурный PNG без падения', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response('Payment Required', { status: 402 });
+  try {
+    const res = await call('media:generateImage', { prompt: 'Киберпанк закат', style: 'cyberpunk', width: 512, height: 512 });
+    assert.equal(res.files.length, 1);
+    assert.equal(res.files[0].provider, 'procedural');
+    assert.ok(fs.existsSync(res.files[0].path));
+    await call('media:delete', { path: res.files[0].path });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+
 

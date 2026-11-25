@@ -1034,8 +1034,9 @@ function MediaTab({ config, onChange }) {
         <div className="section-title"><Icon name="image" size={13} /> Изображения</div>
         <Field label="Провайдер">
           <select className="select" value={media.imageProvider || 'pollinations'} onChange={(e) => onChange('media.imageProvider', e.target.value)}>
-            <option value="pollinations">Pollinations.AI (бесплатно, без ключа)</option>
-            <option value="stablehorde">Stable Horde (бесплатно, без ключа)</option>
+            <option value="pollinations">Pollinations.AI + авто-резерв (бесплатно, без ключа)</option>
+            <option value="stablehorde">AI Horde / Stable Horde (бесплатно, без ключа)</option>
+            <option value="procedural">Процедурный Неон-Арт (мгновенно, офлайн)</option>
             <option value="huggingface">Hugging Face (нужен токен)</option>
             <option value="openai">OpenAI-совместимый endpoint</option>
           </select>

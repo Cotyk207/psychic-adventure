@@ -138,6 +138,10 @@ function filterFreeModels(providerOrId, models) {
       return /-free$/i.test(s) || s === 'big-pickle';
     });
   }
+  if (providerId === 'pollinations') {
+    const deprecatedClassic = new Set(['deepseek', 'deepseek-reasoning', 'llama', 'openai-reasoning']);
+    return list.filter((m) => !deprecatedClassic.has(String(m).toLowerCase()));
+  }
   return list;
 }
 

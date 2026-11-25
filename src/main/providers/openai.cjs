@@ -195,7 +195,16 @@ function createThinkParser() {
   return { feed, flush };
 }
 
-async function sendCompletionWithFallback(provider, body, hasTools, hasReasoning, signal) {
+function isClassicApiModelError(err) {
+  const status = Number(err?.status) || 0;
+  if (status === 404) return true;
+  if (status === 400) {
+    return /classic api|invalid model|model.*not found|unknown model/i.test(String(err?.message || ''));
+  }
+  return false;
+}
+
+async function sendCompletionWithFallback(provider, body, hasTools, hasReasoning, signal, retriedModel = false) {
   try {
     return await request(provider, '/chat/completions', {
       method: 'POST',
@@ -205,12 +214,22 @@ async function sendCompletionWithFallback(provider, body, hasTools, hasReasoning
     if (hasReasoning && isReasoningParamError(err)) {
       delete body.reasoning_effort;
       delete body.thinking;
-      return sendCompletionWithFallback(provider, body, hasTools, false, signal);
+      return sendCompletionWithFallback(provider, body, hasTools, false, signal, retriedModel);
     }
     if (hasTools && isToolsUnsupportedError(err)) {
       delete body.tools;
       delete body.tool_choice;
-      return sendCompletionWithFallback(provider, body, false, hasReasoning, signal);
+      return sendCompletionWithFallback(provider, body, false, hasReasoning, signal, retriedModel);
+    }
+    if (
+      !retriedModel
+      && provider.id === 'pollinations'
+      && !provider.apiKey
+      && body.model !== 'openai'
+      && isClassicApiModelError(err)
+    ) {
+      body.model = 'openai';
+      return sendCompletionWithFallback(provider, body, hasTools, false, signal, true);
     }
     throw err;
   }
@@ -323,6 +342,24 @@ async function listModels(provider, signal) {
       });
       if (!alt.ok) throw err;
       res = alt;
+    } else if (provider.id === 'pollinations') {
+      const alt = await fetch('https://gen.pollinations.ai/text/models', { signal }).catch(() => null);
+      if (alt?.ok) {
+        const catalog = await alt.json().catch(() => []);
+        if (Array.isArray(catalog) && catalog.length) {
+          const classicFree = ['openai', 'openai-fast', 'openai-large', 'qwen-coder', 'mistral', 'gemini', 'gemini-fast'];
+          if (!provider.apiKey) return classicFree;
+          const ids = catalog
+            .filter((m) => m && m.paid_only !== true)
+            .map((m) => m.name || m.id)
+            .filter(Boolean);
+          return filterFreeModels(provider.id, Array.from(new Set([...classicFree, ...ids])));
+        }
+      }
+      if (Array.isArray(provider.models) && provider.models.length) {
+        return filterFreeModels(provider.id, provider.models);
+      }
+      throw err;
     } else {
       throw err;
     }

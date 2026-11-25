@@ -1006,5 +1006,115 @@ test('store: syncPresets очищает удалённые платные вст
   assert.equal(migrated.chat.defaultProvider, 'opencode');
 });
 
+test('sse.httpError: человекочитаемо расшифровывает FreeUsageLimitError, Hugging Face 402, Ollama 404 и Classic API', () => {
+  const { httpError } = require('../src/main/providers/sse.cjs');
+  const e1 = httpError(
+    429,
+    '{"type":"error","error":{"type":"FreeUsageLimitError","message":"Free usage limit reached."}}',
+    'OpenCode Console'
+  );
+  assert.match(e1.message, /OpenCode Console 429/);
+  assert.match(e1.message, /Pollinations\.AI/);
+  assert.equal(e1.code, 'FreeUsageLimitError');
+
+  const e2 = httpError(402, '{"error":"Monthly credits exceeded"}', 'Hugging Face');
+  assert.match(e2.message, /кредиты Hugging Face/i);
+
+  const e3 = httpError(404, '{"error":"model \\"qwen3:8b\\" not found"}', 'Ollama (локально)');
+  assert.match(e3.message, /ollama pull/i);
+
+  const e4 = httpError(404, '{"error":"Model \\"deepseek\\" isn\'t on the Classic API."}', 'Pollinations.AI');
+  assert.match(e4.message, /Classic API/i);
+});
+
+test('openai: Pollinations без ключа автоматически откатывается с устаревшей модели deepseek на openai', async () => {
+  const openai = require('../src/main/providers/openai.cjs');
+  const calls = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (_url, init = {}) => {
+    const body = JSON.parse(init.body || '{}');
+    calls.push(body.model);
+    if (body.model === 'deepseek') {
+      return new Response('{"error":"Model \\"deepseek\\" isn\'t on the Classic API."}', { status: 404 });
+    }
+    const stream = new ReadableStream({
+      start(c) {
+        c.enqueue(new TextEncoder().encode('data: {"choices":[{"delta":{"content":"Привет от Pollinations"}}]}\n\n'));
+        c.enqueue(new TextEncoder().encode('data: [DONE]\n\n'));
+        c.close();
+      },
+    });
+    return new Response(stream, { status: 200 });
+  };
+  try {
+    const out = [];
+    for await (const ev of openai.streamOpenAI({
+      provider: { id: 'pollinations', name: 'Pollinations.AI', type: 'openai', baseUrl: 'https://text.pollinations.ai/openai', apiKey: '' },
+      model: 'deepseek',
+      messages: [{ role: 'user', content: 'Тест' }],
+    })) {
+      out.push(ev);
+    }
+    assert.deepEqual(calls, ['deepseek', 'openai']);
+    assert.equal(out.filter((e) => e.type === 'text').map((e) => e.text).join(''), 'Привет от Pollinations');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('paths + files: находит рабочий стол в OneDrive («Рабочий стол») когда ~/Desktop отсутствует', () => {
+  const electron = require('electron');
+  const pathsMod = require('../src/main/lib/paths.cjs');
+  const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'psychic-onedrive-'));
+  const oneDriveDesktop = path.join(tmpHome, 'OneDrive', 'Рабочий стол');
+  fs.mkdirSync(oneDriveDesktop, { recursive: true });
+  const prevOneDrive = process.env.OneDrive;
+  const prevGetPath = electron.app.getPath;
+  process.env.OneDrive = path.join(tmpHome, 'OneDrive');
+  electron.app.getPath = (name) => (name === 'desktop' ? path.join(tmpHome, 'Desktop') : name === 'home' ? tmpHome : prevGetPath(name));
+  try {
+    const resolved = pathsMod.resolveSystemFolder('desktop', ['Desktop', 'Рабочий стол'], tmpHome);
+    assert.equal(resolved, oneDriveDesktop);
+  } finally {
+    electron.app.getPath = prevGetPath;
+    if (prevOneDrive === undefined) delete process.env.OneDrive;
+    else process.env.OneDrive = prevOneDrive;
+    fs.rmSync(tmpHome, { recursive: true, force: true });
+  }
+});
+
+test('media: hordeImage отправляет Client-Agent и сжимает анонимный размер до 512, а proceduralPngBuffer создаёт валидный PNG', async () => {
+  const { hordeImage, proceduralPngBuffer, HORDE_CLIENT_AGENT } = require('../src/main/services/media.cjs');
+  const png = proceduralPngBuffer('Neon Samurai', { width: 320, height: 240 });
+  assert.equal(png.mime, 'image/png');
+  assert.deepEqual([...png.buffer.slice(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+
+  const seenRequests = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    seenRequests.push({ url: String(url), headers: init.headers || {}, body: init.body ? JSON.parse(init.body) : null });
+    if (String(url).endsWith('/generate/async')) {
+      return new Response(JSON.stringify({ id: 'job-42' }), { status: 202 });
+    }
+    if (String(url).includes('/generate/check/')) {
+      return new Response(JSON.stringify({ done: true, faulted: false }), { status: 200 });
+    }
+    if (String(url).includes('/generate/status/')) {
+      return new Response(JSON.stringify({ generations: [{ img: png.buffer.toString('base64') }] }), { status: 200 });
+    }
+    throw new Error(`Unexpected URL: ${url}`);
+  };
+  try {
+    const res = await hordeImage('Cyber alley', { width: 1024, height: 1024 });
+    assert.ok(res.buffer.length > 50);
+    assert.equal(seenRequests[0].headers['Client-Agent'], HORDE_CLIENT_AGENT);
+    assert.equal(seenRequests[0].body.params.width, 512);
+    assert.equal(seenRequests[0].body.params.height, 512);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+
 
 

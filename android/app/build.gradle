@@ -3,8 +3,8 @@ apply plugin: 'com.android.application'
 import groovy.json.JsonSlurper
 
 def pkgFile = file('../../package.json')
-def pkgJson = pkgFile.exists() ? new JsonSlurper().parseText(pkgFile.text) : [version: '1.0.6']
-def pkgVer = pkgJson.version ?: '1.0.6'
+def pkgJson = pkgFile.exists() ? new JsonSlurper().parseText(pkgFile.text) : [version: '1.0.7']
+def pkgVer = pkgJson.version ?: '1.0.7'
 def verParts = pkgVer.tokenize('.').collect { it.isInteger() ? it.toInteger() : 0 }
 def computedVersionCode = (verParts[0] * 10000) + ((verParts.size() > 1 ? verParts[1] : 0) * 100) + (verParts.size() > 2 ? verParts[2] : 0)
 

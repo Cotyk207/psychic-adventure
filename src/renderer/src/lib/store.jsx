@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useReducer, useRef, useCallback, useMemo } from 'react';
-import { invoke, on } from './api';
+import { invoke, on, cleanIpcErrorMessage } from './api';
 import { applyTheme } from './themes';
 import { player } from './musicPlayer';
 
@@ -117,8 +117,17 @@ function reducer(state, action) {
       return { ...state, media: action.media };
     case 'SET_BROWSER':
       return { ...state, browser: { ...state.browser, ...action.browser } };
-    case 'ADD_TOAST':
+    case 'ADD_TOAST': {
+      const prev = state.toasts[state.toasts.length - 1];
+      if (
+        prev
+        && prev.message === action.toast.message
+        && action.toast.createdAt - prev.createdAt < 1800
+      ) {
+        return state;
+      }
       return { ...state, toasts: [...state.toasts, action.toast].slice(-5) };
+    }
     case 'REMOVE_TOAST':
       return { ...state, toasts: state.toasts.filter((t) => t.id !== action.id) };
     case 'SET_MODAL':
@@ -165,6 +174,7 @@ export function AppProvider({ children }) {
   const stateRef = useRef(state);
   stateRef.current = state;
   const recognitionRef = useRef(null);
+  const lastAgentErrorRef = useRef({ message: '', at: 0 });
 
   const toast = useCallback((message, type = 'info', title) => {
     const id = Math.random().toString(36).slice(2, 10);
@@ -349,7 +359,16 @@ export function AppProvider({ children }) {
         reasoningEffort: options.reasoningEffort ?? current.config?.chat?.reasoningEffort,
       });
     } catch (err) {
-      toast(err.message, 'error', 'Не удалось отправить сообщение');
+      const msg = cleanIpcErrorMessage(err?.message || err);
+      const recent = lastAgentErrorRef.current;
+      if (
+        recent.message
+        && Date.now() - recent.at < 3000
+        && (recent.message === msg || msg.includes(recent.message) || recent.message.includes(msg))
+      ) {
+        return;
+      }
+      toast(msg, 'error', 'Не удалось отправить сообщение');
     }
   }, [createChat, toast]);
 
@@ -371,7 +390,16 @@ export function AppProvider({ children }) {
         reasoningEffort: stateRef.current.config?.chat?.reasoningEffort,
       });
     } catch (err) {
-      toast(err.message, 'error', 'Не удалось повторить генерацию');
+      const msg = cleanIpcErrorMessage(err?.message || err);
+      const recent = lastAgentErrorRef.current;
+      if (
+        recent.message
+        && Date.now() - recent.at < 3000
+        && (recent.message === msg || msg.includes(recent.message) || recent.message.includes(msg))
+      ) {
+        return;
+      }
+      toast(msg, 'error', 'Не удалось повторить генерацию');
     }
   }, [toast]);
 
@@ -543,8 +571,10 @@ export function AppProvider({ children }) {
           new window.Notification('PSYCHIC', { body: 'Ответ готов' });
         }
       } else if (type === 'error') {
+        const msg = cleanIpcErrorMessage(evt.message);
+        lastAgentErrorRef.current = { message: msg, at: Date.now() };
         dispatch({ type: 'STREAM_END' });
-        toast(evt.message, 'error', 'Ошибка генерации');
+        toast(msg, 'error', 'Ошибка генерации');
         refreshChats();
         if (current.activeChatId === chatId) loadChat(chatId);
       }
