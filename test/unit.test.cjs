@@ -1174,7 +1174,6 @@ test('отдельные приложения сервисов использу�
     ['gemini', 'GEMINI', 'https://gemini.google.com/'],
     ['perplexity', 'PERPLEXITY', 'https://www.perplexity.ai/'],
     ['copilot', 'COPILOT', 'https://copilot.microsoft.com/'],
-    ['arena', 'ARENA', 'https://arena.ai/'],
   ];
   assert.match(android, /CustomTabsIntent/);
   assert.doesNotMatch(android, /import android\.webkit|new WebView/);
@@ -1190,4 +1189,32 @@ test('отдельные приложения сервисов использу�
     assert.ok(fs.existsSync(path.join(root, 'subscription-apps/icons', `${id}.ico`)));
     assert.ok(fs.existsSync(path.join(root, 'android/service-launcher/src', id, 'res/drawable/ic_launcher.xml')));
   }
+});
+
+
+test('Arena — отдельный встроенный браузер без Node-интеграции и стороннего доступа к устройствам', () => {
+  const root = path.resolve(__dirname, '..');
+  const gradle = fs.readFileSync(path.join(root, 'android/service-launcher/build.gradle'), 'utf8');
+  const manifest = fs.readFileSync(path.join(root, 'android/service-launcher/src/arena/AndroidManifest.xml'), 'utf8');
+  const android = fs.readFileSync(path.join(root, 'android/service-launcher/src/arena/java/ai/psychic/launchers/ArenaActivity.java'), 'utf8');
+  const windows = fs.readFileSync(path.join(root, 'subscription-apps/arena-windows/main.cjs'), 'utf8');
+  const builder = fs.readFileSync(path.join(root, 'subscription-apps/arena-windows/builder.yml'), 'utf8');
+  const workflow = fs.readFileSync(path.join(root, '.github/workflows/build.yml'), 'utf8');
+  assert.match(gradle, /arena:.*https:\/\/arena\.ai\//);
+  assert.match(gradle, /key == 'arena'.*ArenaActivity/);
+  assert.match(manifest, /android.permission.INTERNET/);
+  assert.match(android, /new WebView\(this\)/);
+  assert.match(android, /setAllowFileAccess\(false\)/);
+  assert.match(android, /onShowFileChooser/);
+  assert.match(android, /isArena\(request.getOrigin\(\)\)/);
+  assert.doesNotMatch(android, /addJavascriptInterface/);
+  assert.match(windows, /https:\/\/arena\.ai\//);
+  assert.match(windows, /partition: 'persist:arena'/);
+  assert.match(windows, /nodeIntegration: false, contextIsolation: true, sandbox: true/);
+  assert.match(windows, /if \(!isArena\(origin\)\) return callback\(false\)/);
+  assert.match(builder, /target: portable/);
+  assert.match(workflow, /arena-windows\/builder\.yml/);
+  assert.match(workflow, /arena:Arena/);
+  assert.ok(fs.existsSync(path.join(root, 'subscription-apps/icons/arena.ico')));
+  assert.ok(fs.existsSync(path.join(root, 'android/service-launcher/src/arena/res/drawable/ic_launcher.xml')));
 });
