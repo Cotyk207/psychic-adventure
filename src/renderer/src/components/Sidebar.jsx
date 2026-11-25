@@ -9,6 +9,8 @@ const NAV = [
   { id: 'chat', label: 'Диалоги', icon: 'message-square', view: 'chat' },
   { id: 'skills', label: 'Скиллы', icon: 'sparkles', view: 'skills' },
   { id: 'media', label: 'Медиа-студия', icon: 'image', view: 'media' },
+  { id: 'workspace', label: 'Мастерская', icon: 'layers', view: 'workspace' },
+  { id: 'aisites', label: 'ИИ-сайты', icon: 'globe', view: 'aisites' },
   { id: 'browser', label: 'Браузер', icon: 'globe', view: 'browser' },
   { id: 'files', label: 'Файлы', icon: 'folder', view: 'files' },
   { id: 'terminal', label: 'Терминал', icon: 'terminal', view: 'terminal' },
@@ -20,6 +22,8 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile }) {
   const { state, setView, createChat, loadChat, deleteChat, renameChat, pinChat, openSettings, updateConfig } = useApp();
   const [editingId, setEditingId] = useState(null);
   const [editValue, setEditValue] = useState('');
+  const [chatQuery, setChatQuery] = useState('');
+  const filteredChats = state.chats.filter(chat => String(chat.title || '').toLowerCase().includes(chatQuery.trim().toLowerCase()));
   const collapsed = state.config?.appearance?.sidebarCollapsed && !mobileOpen;
 
   const activeSkillCount = state.skills.filter((s) => s.enabled).length;
@@ -111,8 +115,9 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile }) {
               {state.chats.length}
             </span>
           </div>
+          {state.chats.length > 0 && <div className="sidebar-chat-search"><Icon name="search" size={13} /><input aria-label="Поиск диалогов" placeholder="Поиск диалогов" value={chatQuery} onChange={e => setChatQuery(e.target.value)} /></div>}
           <div className="chats scroll-thin">
-            {state.chats.map((chat) => (
+            {filteredChats.map((chat) => (
               <div
                 key={chat.id}
                 className={cn('chat-item', state.activeChatId === chat.id && 'active')}
@@ -155,6 +160,7 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile }) {
                 </div>
               </div>
             ))}
+            {state.chats.length > 0 && !filteredChats.length && <div className="sidebar-no-chats">Ничего не найдено</div>}
             {!state.chats.length && (
               <div style={{ padding: '12px 10px', fontSize: 11, color: 'var(--text-faint)' }}>
                 Диалогов пока нет

@@ -577,6 +577,7 @@ export default function SettingsModal({ initialTab }) {
                         if (!window.confirm('Точно сбросить все данные PSYCHIC?')) return;
                         try {
                           await invoke('app:factoryReset');
+                          window.dispatchEvent(new CustomEvent('psychic:factory-reset'));
                           await refreshConfig();
                           await refreshAll();
                           await refreshTasks();

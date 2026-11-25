@@ -247,6 +247,33 @@ await wait(750);
 const writtenNote = path.join(bootInfo.paths.workspace, 'e2e-note.txt');
 check('e2e: agent executed write_file tool', fs.existsSync(writtenNote) && fs.readFileSync(writtenNote, 'utf8') === 'Привет из E2E!');
 check('e2e: assistant reply rendered in chat', html().includes('Заметка успешно записана'));
+// Поиск в текущем диалоге, копирование и цитирование работают на живом состоянии.
+const toolButton = label => [...document.querySelectorAll('.chat-tools button')].find(b => b.textContent.includes(label));
+toolButton('Поиск')?.click();
+await wait(80);
+const findInput = document.querySelector('[aria-label="Найти в диалоге"]');
+if (findInput) {
+  Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(findInput, 'Заметка успешно');
+  findInput.dispatchEvent(new window.Event('input', { bubbles: true }));
+}
+await wait(100);
+check('e2e: chat search filters messages', html().includes('1 найдено') && (document.querySelector('.chat-inner')?.textContent || '').includes('Заметка успешно записана') && !(document.querySelector('.chat-inner')?.textContent || '').includes('Создай заметку в рабочей папке'));
+toolButton('Поиск')?.click();
+await wait(80);
+toolButton('Копировать')?.click();
+await wait(100);
+const copiedConversation = await electron.ipcRenderer.invoke('clipboard:read');
+check('e2e: copies conversation with newlines', copiedConversation.includes('Вы:\nСоздай заметку') && copiedConversation.includes('PSYCHIC:\nЗаметка'));
+const quoteButton = [...document.querySelectorAll('.msg-action')].find(b => b.textContent.includes('Цитировать'));
+quoteButton?.click();
+await wait(100);
+check('e2e: quote inserts into composer', document.querySelector('.composer-input')?.value.includes('> Создай заметку'));
+const composerAfterQuote = document.querySelector('.composer-input');
+if (composerAfterQuote) {
+  Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set.call(composerAfterQuote, '');
+  composerAfterQuote.dispatchEvent(new window.Event('input', { bubbles: true }));
+}
+await wait(80);
 check(
   'e2e: AI reasoning block and toggle button rendered on message',
   html().includes('Рассуждения ИИ') && html().includes('Шаг 1: проверяю путь') && html().includes('Скрыть рассуждения')
@@ -307,6 +334,71 @@ check(
     && html().includes('target="_blank"')
 );
 
+// Мастерская: сохранение в настоящий конфиг, Markdown, поиск, сохранность черновика,
+// шаблон без отправки и фокус-таймер, переживающий переключение разделов.
+document.querySelector('.nav-item[title="Мастерская"]')?.click();
+await wait(160);
+const wbButton = (container, label) => [...document.querySelectorAll(container)].find(b => b.textContent.trim().includes(label));
+wbButton('.workbench-list-head button', 'Создать')?.click();
+await wait(80);
+const setWorkbenchValue = (selector, value) => {
+  const el = document.querySelector(selector);
+  if (!el) return;
+  const proto = el.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+  Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, value);
+  el.dispatchEvent(new window.Event('input', { bubbles: true }));
+};
+setWorkbenchValue('[aria-label="Заголовок заметки"]', 'Рабочий план');
+setWorkbenchValue('[aria-label="Теги заметки"]', 'задачи, проект');
+setWorkbenchValue('[aria-label="Текст заметки"]', '# Идеи\n\nСделать прототип');
+await wait(100);
+wbButton('.workbench-editor-actions button', 'Сохранить')?.click();
+await wait(220);
+const cfgWithNote = await electron.ipcRenderer.invoke('config:get');
+check('e2e: note saved to config with tags', cfgWithNote.workbench?.notes?.[0]?.title === 'Рабочий план' && cfgWithNote.workbench.notes[0].content.includes('прототип'));
+wbButton('.workbench-editor-actions button', 'Просмотр')?.click();
+await wait(100);
+check('e2e: note Markdown preview renders', Boolean(document.querySelector('.workbench-preview h1')));
+wbButton('.workbench-editor-actions button', 'Редактор')?.click();
+await wait(80);
+setWorkbenchValue('[aria-label="Текст заметки"]', 'Несохранённый черновик');
+await wait(80);
+document.querySelector('.nav-item[title="Обзор"]')?.click();
+await wait(100);
+document.querySelector('.nav-item[title="Мастерская"]')?.click();
+await wait(100);
+check('e2e: note draft survives view navigation', document.querySelector('[aria-label="Текст заметки"]')?.value === 'Несохранённый черновик' && html().includes('Не сохранено'));
+wbButton('.workbench-editor-actions button', 'Сохранить')?.click();
+await wait(150);
+setWorkbenchValue('[aria-label="Поиск заметок"]', 'проект');
+await wait(80);
+check('e2e: notes searchable by tag', document.querySelector('.workbench-note-item')?.textContent.includes('Рабочий план'));
+wbButton('.workbench-tabs button', 'Шаблоны')?.click();
+await wait(80);
+setWorkbenchValue('[aria-label="Контекст для шаблона"]', 'Изучить Python');
+await wait(80);
+const chatBeforePrompt = await electron.ipcRenderer.invoke('chats:list');
+wbButton('.workbench-prompt-actions button', 'Вставить в чат')?.click();
+await wait(300);
+const chatAfterPrompt = await electron.ipcRenderer.invoke('chats:list');
+check('e2e: prompt inserts without sending', document.querySelector('.composer-input')?.value.includes('Изучить Python') && JSON.stringify(chatBeforePrompt.map(c => [c.id, c.messageCount])) === JSON.stringify(chatAfterPrompt.map(c => [c.id, c.messageCount])));
+document.querySelector('.nav-item[title="Мастерская"]')?.click();
+await wait(120);
+wbButton('.workbench-tabs button', 'Фокус')?.click();
+await wait(80);
+wbButton('.focus-presets button', '5 мин')?.click();
+wbButton('.focus-controls button', 'Старт')?.click();
+await wait(130);
+check('e2e: focus timer starts', Boolean(wbButton('.focus-controls button', 'Пауза')));
+document.querySelector('.nav-item[title="Обзор"]')?.click();
+await wait(100);
+document.querySelector('.nav-item[title="Мастерская"]')?.click();
+await wait(100);
+check('e2e: focus timer survives navigation', Boolean(wbButton('.focus-controls button', 'Пауза')));
+wbButton('.focus-controls button', 'Сброс')?.click();
+await wait(80);
+check('e2e: focus timer reset', document.querySelector('.focus-clock')?.textContent === '05:00');
+
 // Сброс до заводских настроек через UI (вкладка «О программе»)
 window.dispatchEvent(new window.KeyboardEvent('keydown', { key: ',', ctrlKey: true, bubbles: true }));
 await wait(220);
@@ -316,6 +408,7 @@ clickButton('Сбросить всё');
 await wait(350);
 const cfgAfterReset = await electron.ipcRenderer.invoke('config:get');
 check('e2e: factory reset restored defaults and created fresh chat', cfgAfterReset.appearance.theme === 'nightcity');
+check('e2e: factory reset removes stored and in-memory notes', !cfgAfterReset.workbench?.notes?.length && !document.querySelector('[aria-label="Текст заметки"]'));
 
 console.error = origErr;
 await mainApp.shutdownServices();

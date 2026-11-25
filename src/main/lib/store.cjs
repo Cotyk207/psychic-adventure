@@ -236,10 +236,12 @@ class Store {
     return dotPath ? getPath(this.data, dotPath) : this.data;
   }
 
-  set(dotPath, value) {
+  set(dotPath, value, { strict = false } = {}) {
     if (!this.data) this.init();
+    const previous = strict ? this.get(dotPath) : undefined;
     setPath(this.data, dotPath, value);
-    this.save();
+    try { this.save(strict); }
+    catch (err) { if (strict) setPath(this.data, dotPath, previous); throw err; }
     this.emit(dotPath, value);
     return value;
   }
@@ -260,10 +262,11 @@ class Store {
     return this.data;
   }
 
-  save() {
+  save(strict = false) {
     try {
       fs.writeFileSync(this.file, JSON.stringify(this.data, null, 2), 'utf8');
     } catch (err) {
+      if (strict) throw err;
       console.error('Failed to save config', err);
     }
   }

@@ -1,5 +1,5 @@
 {
-  "version": 6,
+  "version": 7,
   "providers": [
     {
       "id": "opencode",
@@ -134,6 +134,27 @@
         "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
       ],
       "defaultModel": "nvidia/gpt-oss-20b",
+      "modelFetch": "openai",
+      "builtin": true
+    },
+    {
+      "id": "vireonix",
+      "name": "Vireonix Auto",
+      "tagline": "Автовыбор модели без регистрации и API-ключа · лимиты на IP",
+      "type": "openai",
+      "accessType": "nokey",
+      "noKey": true,
+      "free": true,
+      "badge": "БЕЗ КЛЮЧА · FREE",
+      "color": "#67d4c0",
+      "baseUrl": "https://vireonix.ai/v1",
+      "docsUrl": "https://vireonix.ai/docs",
+      "keyUrl": "",
+      "keyHint": "Бесплатный анонимный API с лимитами на IP. Запросы обрабатывает Vireonix и выбранные им поставщики; не отправляй секреты. Доступность может измениться.",
+      "models": [
+        "auto"
+      ],
+      "defaultModel": "auto",
       "modelFetch": "openai",
       "builtin": true
     },

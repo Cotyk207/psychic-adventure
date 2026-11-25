@@ -10,6 +10,8 @@ import './styles/dashboard.css';
 import './styles/settings.css';
 import './styles/mobile.css';
 import './styles/refined.css';
+import './styles/ai-sites.css';
+import './styles/workspace.css';
 import '@xterm/xterm/css/xterm.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(

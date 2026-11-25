@@ -10,7 +10,7 @@ export default function Onboarding() {
   const androidApp = isAndroidApp();
 
   const features = [
-    { icon: 'cpu', title: 'Только бесплатные модели', text: 'OpenCode, Pollinations, Kilo, OVHcloud и BlockRun доступны без ключа. Другие провайдеры подключаются в настройках.' },
+    { icon: 'cpu', title: 'Только бесплатные модели', text: 'OpenCode, Pollinations, Kilo, OVHcloud, BlockRun и Vireonix предлагают модели без ключа. Доступ и лимиты могут меняться.' },
     { icon: 'brain', title: 'Управление рассуждениями ИИ', text: 'Смотри ход мыслей нейросети и настраивай глубину рассуждений: от быстрого ответа до максимума.' },
     {
       icon: 'folder',
