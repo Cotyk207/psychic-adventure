@@ -61,13 +61,13 @@ function ReasoningBlock({ text, effort, streaming, open, onToggle, onExpand, onC
   );
 }
 
-export default function Message({ message, streaming }) {
+export default function Message({ message, streaming, isLastAssistant }) {
   const { regenerate, speak, forkChat, refreshMemory, dispatch, toast, state } = useApp();
   const isUser = message.role === 'user';
   const hasContent = !!message.content?.trim();
   const hasReasoning = !!message.reasoning?.trim();
   const toolCalls = message.toolCalls || [];
-  const isLastAssistant = !isUser && !streaming;
+
 
   const autoShow = state.config?.chat?.showReasoning !== false;
   const [reasoningOpen, setReasoningOpen] = useState(() => Boolean(streaming || autoShow));
@@ -85,6 +85,12 @@ export default function Message({ message, streaming }) {
     if (!message.content) return;
     await copyToClipboard(message.content);
     toast('Ответ скопирован', 'success');
+  };
+
+  const quoteInComposer = () => {
+    const quote = String(message.content || '').slice(0, 6000).split('\n').map(line => `> ${line}`).join('\n');
+    window.dispatchEvent(new CustomEvent('psychic:composer-insert', { detail: { text: `${quote}\n\n` } }));
+    toast('Цитата добавлена в поле ввода', 'success');
   };
 
   const onCopyReasoning = async () => {
@@ -186,6 +192,7 @@ export default function Message({ message, streaming }) {
                 <Icon name="copy" size={12} /> Копировать
               </button>
             )}
+            {hasContent && <button className="msg-action" onClick={quoteInComposer} title="Цитировать в поле ввода"><Icon name="message-square" size={12} /> Цитировать</button>}
             {hasReasoning && (
               <>
                 <button

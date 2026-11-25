@@ -64,7 +64,7 @@ function filterFreeModels(providerOrId, models) {
   if (providerId === 'kilo') {
     return list.filter((m) => String(m) === 'kilo-auto/free' || /:free$/i.test(String(m)));
   }
-  if (providerId === 'blockrun' || providerId === 'ovhcloud') {
+  if (providerId === 'blockrun' || providerId === 'ovhcloud' || providerId === 'vireonix') {
     const allowed = new Set(PRESETS.providers.find((p) => p.id === providerId)?.models || []);
     return list.filter((m) => allowed.has(String(m)));
   }
@@ -504,7 +504,7 @@ function buildProviderHeaders(provider) {
   if (provider.id === 'opencode') {
     h.Authorization = `Bearer ${provider.apiKey || 'public'}`;
     h['User-Agent'] = 'opencode/stable/1.0.0/opencode';
-  } else if (provider.apiKey && provider.id !== 'ovhcloud') {
+  } else if (provider.apiKey && provider.id !== 'ovhcloud' && provider.id !== 'vireonix') {
     h.Authorization = `Bearer ${provider.apiKey}`;
   }
   if (provider.id === 'openrouter') {

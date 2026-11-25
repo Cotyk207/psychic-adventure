@@ -247,6 +247,33 @@ await wait(750);
 const writtenNote = path.join(bootInfo.paths.workspace, 'e2e-note.txt');
 check('e2e: agent executed write_file tool', fs.existsSync(writtenNote) && fs.readFileSync(writtenNote, 'utf8') === 'Привет из E2E!');
 check('e2e: assistant reply rendered in chat', html().includes('Заметка успешно записана'));
+// Поиск в текущем диалоге, копирование и цитирование работают на живом состоянии.
+const toolButton = label => [...document.querySelectorAll('.chat-tools button')].find(b => b.textContent.includes(label));
+toolButton('Поиск')?.click();
+await wait(80);
+const findInput = document.querySelector('[aria-label="Найти в диалоге"]');
+if (findInput) {
+  Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(findInput, 'Заметка успешно');
+  findInput.dispatchEvent(new window.Event('input', { bubbles: true }));
+}
+await wait(100);
+check('e2e: chat search filters messages', html().includes('1 найдено') && (document.querySelector('.chat-inner')?.textContent || '').includes('Заметка успешно записана') && !(document.querySelector('.chat-inner')?.textContent || '').includes('Создай заметку в рабочей папке'));
+toolButton('Поиск')?.click();
+await wait(80);
+toolButton('Копировать')?.click();
+await wait(100);
+const copiedConversation = await electron.ipcRenderer.invoke('clipboard:read');
+check('e2e: copies conversation with newlines', copiedConversation.includes('Вы:\nСоздай заметку') && copiedConversation.includes('PSYCHIC:\nЗаметка'));
+const quoteButton = [...document.querySelectorAll('.msg-action')].find(b => b.textContent.includes('Цитировать'));
+quoteButton?.click();
+await wait(100);
+check('e2e: quote inserts into composer', document.querySelector('.composer-input')?.value.includes('> Создай заметку'));
+const composerAfterQuote = document.querySelector('.composer-input');
+if (composerAfterQuote) {
+  Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set.call(composerAfterQuote, '');
+  composerAfterQuote.dispatchEvent(new window.Event('input', { bubbles: true }));
+}
+await wait(80);
 check(
   'e2e: AI reasoning block and toggle button rendered on message',
   html().includes('Рассуждения ИИ') && html().includes('Шаг 1: проверяю путь') && html().includes('Скрыть рассуждения')

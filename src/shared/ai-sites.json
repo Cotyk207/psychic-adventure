@@ -1,0 +1,10 @@
+[
+  {"id":"duck","name":"Duck.ai","url":"https://duck.ai/","category":"chat","access":"Без аккаунта","description":"Общение с несколькими моделями, лимиты зависят от сервиса.","source":"https://duckduckgo.com/duckduckgo-help-pages/duckai"},
+  {"id":"chatgpt","name":"ChatGPT","url":"https://chatgpt.com/","category":"chat","access":"Гостевой режим","description":"Основной чат без входа в поддерживаемых странах; лимиты и функции различаются.","source":"https://help.openai.com/en/articles/9125172-the-chatgpt-home-page"},
+  {"id":"perplexity","name":"Perplexity","url":"https://www.perplexity.ai/","category":"search","access":"Гостевой режим","description":"Поиск с ответами и ссылками; некоторые функции требуют входа.","source":"https://www.perplexity.ai/help-center/en/articles/10352998-account-management-and-security"},
+  {"id":"vireonix","name":"Vireonix Try","url":"https://vireonix.ai/try","category":"chat","access":"Без аккаунта","description":"Бесплатный чат с автоматическим выбором модели; лимиты на IP.","source":"https://vireonix.ai/"},
+  {"id":"huggingchat","name":"HuggingChat","url":"https://huggingface.co/chat/","category":"chat","access":"Вход может потребоваться","description":"Чат с открытыми моделями; доступ и лимиты зависят от модели.","source":"https://huggingface.co/chat/"},
+  {"id":"deepai","name":"DeepAI","url":"https://deepai.org/chat","category":"chat","access":"Гостевой режим","description":"Базовый чат; на сайте также есть платные возможности.","source":"https://deepai.org/chat"},
+  {"id":"andi","name":"Andi","url":"https://andisearch.com/","category":"search","access":"Условия могут меняться","description":"Поисковый помощник с ответами; доступность зависит от региона и нагрузки.","source":"https://andisearch.com/"},
+  {"id":"mistral","name":"Mistral Vibe","url":"https://chat.mistral.ai/","category":"chat","access":"Может потребоваться аккаунт","description":"Помощник Mistral с бесплатным режимом и платными тарифами.","source":"https://help.mistral.ai/en/articles/682992-le-chat-is-now-vibe"}
+]

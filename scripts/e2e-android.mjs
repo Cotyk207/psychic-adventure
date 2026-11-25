@@ -65,6 +65,7 @@ window.SpeechSynthesisUtterance = globalThis.SpeechSynthesisUtterance;
 
 // ── Симуляция нативного Java @JavascriptInterface (window.PsychicAndroid) ──
 let nativeClipboard = '';
+const openedUrls = [];
 const nativeFiles = new Map();
 const capturedHttpCalls = [];
 let streamTurn = 0;
@@ -77,7 +78,8 @@ window.PsychicAndroid = {
   readClipboard() {
     return nativeClipboard;
   },
-  openExternal() {
+  openExternal(url) {
+    openedUrls.push(url);
     return true;
   },
   getDeviceStats() {
@@ -153,7 +155,9 @@ window.PsychicAndroid = {
       }
 
       if (url.endsWith('/models')) {
-        const ids = url.includes('kilo.ai')
+        const ids = url.includes('vireonix.ai')
+          ? ['auto', 'paid-model']
+          : url.includes('kilo.ai')
           ? ['kilo-auto/free', 'nvidia/test:free', 'openai/paid']
           : url.includes('ovh.net')
             ? ['gpt-oss-20b', 'whisper-large-v3']
@@ -248,7 +252,7 @@ check('android: mobileBridge auto-initialized (platform=android)', window.psychi
 const upgradedProviders = await window.psychic.invoke('providers:list');
 check('android: upgrade preserves disabled providers and enables new anonymous providers',
   upgradedProviders.find(p => p.id === 'pollinations')?.enabled === false &&
-  ['kilo', 'ovhcloud', 'blockrun'].every(id => upgradedProviders.some(p => p.id === id && p.enabled && p.noKey)));
+  ['kilo', 'ovhcloud', 'blockrun', 'vireonix'].every(id => upgradedProviders.some(p => p.id === id && p.enabled && p.noKey)));
 check('android: desktop window controls hidden on phone', !document.querySelector('.window-controls'));
 check('android: onboarding rendered & completed', clickButton('Начать работу'));
 await wait(250);
@@ -302,8 +306,18 @@ await window.psychic.invoke('browser:open', { url: 'https://example.org' });
 await wait(200);
 check('android: built-in reader mode works without Electron WebContentsView', html().includes('Android Reader Demo') && html().includes('Текст статьи для мобильного ридера'));
 
-// Возвращаемся в Чат через нижний таббар
-clickButton('Чат', true);
+// Каталог использует системный браузер, а не мобильный ридер или передачу чата.
+clickButton('Меню', true);
+await wait(150);
+clickButton('ИИ-сайты');
+await wait(180);
+check('android: AI sites catalog opens from mobile menu', html().includes('Duck.ai') && html().includes('Vireonix Try'));
+document.querySelector('.ai-site-card .ai-site-actions button')?.click();
+await wait(100);
+check('android: AI site opens in system browser', openedUrls.includes('https://duck.ai/'));
+
+// Возвращаемся в Чат через нижний таббар, а не фильтр каталога с тем же именем.
+[...document.querySelectorAll('.mobile-tabbar button')].find(b => b.textContent.trim() === 'Чат')?.click();
 await wait(250);
 
 check('android: welcome opens at the top', Boolean(document.querySelector('.welcome')) && document.querySelector('.chat-scroll')?.scrollTop === 0);
@@ -313,7 +327,7 @@ const modelPill = document.querySelector('.model-pill');
 if (modelPill) modelPill.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
 await wait(220);
 check('android: free-only OpenCode models available out of the box', html().includes('OpenCode Console') && html().includes('Tidepool Alpha Free'));
-check('android: new anonymous providers visible in model picker', ['Kilo AI Gateway', 'OVHcloud AI Endpoints', 'BlockRun (Free)'].every(name => html().includes(name)));
+check('android: new anonymous providers visible in model picker', ['Kilo AI Gateway', 'OVHcloud AI Endpoints', 'BlockRun (Free)', 'Vireonix Auto'].every(name => html().includes(name)));
 const tidepool = [...document.querySelectorAll('.picker-model-item')].find((el) => (el.textContent || '').includes('Tidepool Alpha Free'));
 if (tidepool) tidepool.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
 await wait(200);
@@ -373,6 +387,7 @@ for (const [id, expected] of [
   ['kilo', ['kilo-auto/free', 'nvidia/test:free']],
   ['ovhcloud', ['gpt-oss-20b']],
   ['blockrun', ['nvidia/gpt-oss-20b']],
+  ['vireonix', ['auto']],
 ]) {
   const provider = (await window.psychic.invoke('providers:list')).find(p => p.id === id);
   const models = await window.psychic.invoke('providers:fetchModels', { provider });

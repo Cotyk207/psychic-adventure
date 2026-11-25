@@ -1132,6 +1132,7 @@ test('новые безключевые провайдеры: миграция, 
     ['kilo', ['kilo-auto/free', 'nvidia/test:free', 'openai/paid'], ['kilo-auto/free', 'nvidia/test:free']],
     ['ovhcloud', ['gpt-oss-20b', 'whisper-large-v3', 'unknown'], ['gpt-oss-20b']],
     ['blockrun', ['nvidia/gpt-oss-20b', 'openai/gpt-6.2-astra', 'nvidia/unknown'], ['nvidia/gpt-oss-20b']],
+    ['vireonix', ['auto', 'unknown'], ['auto']],
   ];
   const originalFetch = globalThis.fetch;
   try {
@@ -1157,6 +1158,7 @@ test('новые безключевые провайдеры: миграция, 
     }
     assert.equal(adapter.buildHeaders({ id: 'ovhcloud', apiKey: 'secret', extraHeaders: { authorization: 'Bearer secret' } }).authorization, undefined);
     assert.equal(adapter.buildHeaders({ id: 'ovhcloud', apiKey: 'secret' }).Authorization, undefined);
+    assert.equal(adapter.buildHeaders({ id: 'vireonix', apiKey: 'secret', extraHeaders: { authorization: 'Bearer secret' } }).authorization, undefined);
   } finally { globalThis.fetch = originalFetch; }
 });
 
@@ -1217,4 +1219,20 @@ test('Arena — отдельный встроенный браузер без No
   assert.match(workflow, /arena:Arena/);
   assert.ok(fs.existsSync(path.join(root, 'subscription-apps/icons/arena.ico')));
   assert.ok(fs.existsSync(path.join(root, 'android/service-launcher/src/arena/res/drawable/ic_launcher.xml')));
+});
+
+
+test('каталог ИИ-сайтов содержит только уникальные HTTPS-ссылки без ключей', () => {
+  const sites = require('../src/shared/ai-sites.json');
+  assert.ok(sites.length >= 5);
+  assert.equal(new Set(sites.map(site => site.id)).size, sites.length);
+  for (const site of sites) {
+    for (const value of [site.url, site.source]) {
+      const url = new URL(value);
+      assert.equal(url.protocol, 'https:');
+      assert.equal(url.username, '');
+      assert.equal(url.password, '');
+    }
+    assert.ok(site.name && site.description && site.access);
+  }
 });

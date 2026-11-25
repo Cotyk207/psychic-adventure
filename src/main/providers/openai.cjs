@@ -12,7 +12,7 @@ function buildHeaders(provider) {
   if (provider.id === 'opencode') {
     h.Authorization = `Bearer ${provider.apiKey || 'public'}`;
     h['User-Agent'] = 'opencode/stable/1.0.0/opencode';
-  } else if (provider.apiKey && provider.id !== 'ovhcloud') {
+  } else if (provider.apiKey && provider.id !== 'ovhcloud' && provider.id !== 'vireonix') {
     h.Authorization = `Bearer ${provider.apiKey}`;
   }
   if (provider.id === 'openrouter') {
@@ -23,7 +23,7 @@ function buildHeaders(provider) {
     Object.assign(h, provider.extraHeaders);
   }
   // OVHcloud's anonymous tier is free; authenticated requests can be billed.
-  if (provider.id === 'ovhcloud') {
+  if (provider.id === 'ovhcloud' || provider.id === 'vireonix') {
     for (const name of Object.keys(h)) if (name.toLowerCase() === 'authorization') delete h[name];
   }
   return h;

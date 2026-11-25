@@ -28,6 +28,7 @@ import MemoryPanel from './components/MemoryPanel';
 import MediaRenderer from './components/MediaRenderer';
 import ErrorBoundary from './components/ErrorBoundary';
 import Dashboard from './components/Dashboard';
+import AISites from './components/AISites';
 import ShortcutHelp from './components/ShortcutHelp';
 import ContextMenu from './components/ContextMenu';
 import ReasoningModal from './components/ReasoningModal';
@@ -35,6 +36,7 @@ import { getModelMeta } from './lib/models';
 
 const VIEW_META = {
   dashboard: { title: 'Обзор', icon: 'zap' },
+  aisites: { title: 'ИИ-сайты', icon: 'globe' },
   chat: { title: 'Диалог', icon: 'message-square' },
   skills: { title: 'Скиллы', icon: 'sparkles' },
   media: { title: 'Медиа-студия', icon: 'image' },
@@ -194,6 +196,7 @@ function Shell() {
   const renderView = () => {
     switch (state.view) {
       case 'dashboard': return <Dashboard />;
+      case 'aisites': return <AISites />;
       case 'skills': return <SkillsPanel />;
       case 'media': return <MediaStudio />;
       case 'browser': return <BrowserPanel />;

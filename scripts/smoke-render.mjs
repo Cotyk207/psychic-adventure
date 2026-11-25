@@ -239,6 +239,7 @@ const views = [
   ['Скиллы', 'skill-card'],
   ['Медиа-студия', 'media-layout'],
   ['Браузер', 'browser-panel'],
+  ['ИИ-сайты', 'ai-sites-grid'],
   ['Файлы', 'files-layout'],
   ['Терминал', 'terminal-panel'],
   ['Музыка', 'music-list'],
@@ -249,6 +250,21 @@ for (const [label, marker] of views) {
   await wait(250);
   check(`view: ${label}`, clicked && html().includes(marker));
 }
+
+// Каталог: фильтрация, избранное и открытие только выбранной HTTPS-ссылки.
+clickByText('ИИ-сайты');
+await wait(100);
+check('sites catalog shows Duck.ai and Vireonix', html().includes('Duck.ai') && html().includes('Vireonix Try'));
+const fav = document.querySelector('[aria-label="В избранное: Duck.ai"]');
+fav?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await wait(80);
+clickByText('Избранное');
+await wait(80);
+check('sites favorites filter', html().includes('Duck.ai') && !html().includes('Vireonix Try'));
+const siteOpen = document.querySelector('.ai-site-card .ai-site-actions button');
+siteOpen?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await wait(80);
+check('sites open externally', invokeLog.some(c => c.channel === 'app:openExternal' && c.payload?.url === 'https://duck.ai/'));
 
 // Settings modal
 clickByText('Настройки');
