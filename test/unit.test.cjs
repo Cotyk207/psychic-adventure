@@ -1166,12 +1166,15 @@ test('отдельные приложения сервисов использу�
   const android = fs.readFileSync(path.join(root, 'android/service-launcher/src/main/java/ai/psychic/launchers/MainActivity.java'), 'utf8');
   const windows = fs.readFileSync(path.join(root, 'subscription-apps/windows/Launcher.cs'), 'utf8');
   const manifest = fs.readFileSync(path.join(root, 'android/service-launcher/src/main/AndroidManifest.xml'), 'utf8');
+  const windowsBuild = fs.readFileSync(path.join(root, 'subscription-apps/windows/build.ps1'), 'utf8');
+  const workflow = fs.readFileSync(path.join(root, '.github/workflows/build.yml'), 'utf8');
   const services = [
     ['chatgpt', 'CHATGPT', 'https://chatgpt.com/'],
     ['claude', 'CLAUDE', 'https://claude.ai/'],
     ['gemini', 'GEMINI', 'https://gemini.google.com/'],
     ['perplexity', 'PERPLEXITY', 'https://www.perplexity.ai/'],
     ['copilot', 'COPILOT', 'https://copilot.microsoft.com/'],
+    ['arena', 'ARENA', 'https://arena.ai/'],
   ];
   assert.match(android, /CustomTabsIntent/);
   assert.doesNotMatch(android, /import android\.webkit|new WebView/);
@@ -1182,6 +1185,8 @@ test('отдельные приложения сервисов использу�
     assert.match(gradle, new RegExp(`${id}:`));
     assert.ok(gradle.includes(url) && windows.includes(url));
     assert.ok(windows.includes(`#if ${symbol}`) || windows.includes(`#elif ${symbol}`));
+    assert.match(windowsBuild, new RegExp(`Id = '${id}'; Name = '[^']+'; Define = '${symbol}'`));
+    assert.match(workflow, new RegExp(`${id}:[A-Za-z]+`));
     assert.ok(fs.existsSync(path.join(root, 'subscription-apps/icons', `${id}.ico`)));
     assert.ok(fs.existsSync(path.join(root, 'android/service-launcher/src', id, 'res/drawable/ic_launcher.xml')));
   }

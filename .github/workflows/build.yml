@@ -136,7 +136,7 @@ jobs:
           cp "$APK_SRC" "$APK_DST"
           APKSIGNER=$(ls -1 "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -n 1)
           "$APKSIGNER" verify --verbose "$APK_DST"
-          for entry in chatgpt:ChatGPT claude:Claude gemini:Gemini perplexity:Perplexity copilot:Copilot; do
+          for entry in chatgpt:ChatGPT claude:Claude gemini:Gemini perplexity:Perplexity copilot:Copilot arena:Arena; do
             flavor="${entry%%:*}"
             name="${entry#*:}"
             src="android/service-launcher/build/outputs/apk/${flavor}/release/service-launcher-${flavor}-release.apk"
@@ -162,7 +162,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Build five independent service launchers
+      - name: Build independent service launchers
         shell: powershell
         run: ./subscription-apps/windows/build.ps1
       - name: Upload Windows service launchers

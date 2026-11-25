@@ -22,6 +22,9 @@ internal static class Launcher
 #elif COPILOT
     private const string ServiceName = "Copilot";
     private const string ServiceUrl = "https://copilot.microsoft.com/";
+#elif ARENA
+    private const string ServiceName = "Arena";
+    private const string ServiceUrl = "https://arena.ai/";
 #else
 #error A service must be selected at build time.
 #endif
