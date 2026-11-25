@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../lib/store';
-import { invoke } from '../lib/api';
+import { invoke, isAndroidApp } from '../lib/api';
 import { cn } from '../lib/utils';
 import { getModelMeta, providerAccessGroup } from '../lib/models';
 import Icon from './Icon';
@@ -92,7 +92,7 @@ export default function ModelPicker() {
               placeholder="Поиск моделей…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              autoFocus
+              autoFocus={!isAndroidApp() && (typeof window === 'undefined' || window.innerWidth > 860)}
             />
           </div>
 

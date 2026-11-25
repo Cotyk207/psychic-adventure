@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../lib/store';
-import { invoke } from '../lib/api';
+import { invoke, isAndroidApp } from '../lib/api';
 import { THEMES, makeCustomTheme } from '../lib/themes';
 import { cn } from '../lib/utils';
 import Icon from './Icon';
@@ -34,10 +34,13 @@ function Switch({ value, onChange, disabled }) {
   );
 }
 
-function Field({ label, hint, children, wide }) {
+function Field({ label, hint, children, wide, inline }) {
+  const childArray = React.Children.toArray(children);
+  const singleSwitch = childArray.length === 1 && childArray[0]?.type === Switch;
+  const keepInline = !wide && (inline || singleSwitch);
   return (
-    <div className={cn('field', wide && 'wide')}>
-      <div style={{ minWidth: 0 }}>
+    <div className={cn('field', wide && 'wide', keepInline ? 'field-inline' : 'field-stack-mobile')}>
+      <div className="field-text" style={{ minWidth: 0 }}>
         <div className="field-label">{label}</div>
         {hint && <div className="field-hint">{hint}</div>}
       </div>
@@ -49,10 +52,31 @@ function Field({ label, hint, children, wide }) {
 export default function SettingsModal({ initialTab }) {
   const { state, closeModal, updateConfig, patchConfig, refreshConfig, refreshProviders, refreshSkills, refreshMemory, refreshTasks, refreshAll, createChat, toast } = useApp();
   const [tab, setTab] = useState(initialTab || 'general');
+  const navRef = useRef(null);
+  const bodyRef = useRef(null);
   const config = state.config || {};
   const providers = state.providers || [];
+  const androidApp = isAndroidApp();
+  const activeTabLabel = TABS.find((t) => t[0] === tab)?.[1] || 'Настройки';
 
   const close = () => closeModal();
+
+  const selectTab = (nextTab) => {
+    setTab(nextTab);
+    try {
+      bodyRef.current?.scrollTo?.({ top: 0, behavior: 'instant' });
+    } catch {
+      if (bodyRef.current) bodyRef.current.scrollTop = 0;
+    }
+    setTimeout(() => {
+      const btn = navRef.current?.querySelector?.(`[data-tab="${nextTab}"]`);
+      btn?.scrollIntoView?.({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+    }, 20);
+  };
+
+  useEffect(() => {
+    if (initialTab) setTab(initialTab);
+  }, [initialTab]);
 
   useEffect(() => {
     const onKey = (event) => {
@@ -65,10 +89,22 @@ export default function SettingsModal({ initialTab }) {
   const set = (key, value) => updateConfig(key, value);
 
   return (
-    <div className="modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}>
+    <div className="modal-backdrop settings-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}>
       <div className="modal settings" onMouseDown={(e) => e.stopPropagation()}>
-        <nav className="settings-nav">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px 14px' }}>
+        <div className="settings-mobile-bar mobile-only">
+          <div className="settings-mobile-brand">
+            <Logo size={18} />
+            <span className="settings-mobile-heading">Настройки</span>
+            <span className="settings-mobile-sep">·</span>
+            <span className="settings-mobile-section">{activeTabLabel}</span>
+          </div>
+          <button type="button" className="icon-btn" onClick={close} title="Закрыть">
+            <Icon name="x" size={18} />
+          </button>
+        </div>
+
+        <nav className="settings-nav" ref={navRef}>
+          <div className="settings-nav-brand" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px 14px' }}>
             <Logo size={20} />
             <span style={{ fontFamily: 'var(--font-display)', fontSize: 11, letterSpacing: '0.18em' }}>
               PSYCHIC
@@ -77,25 +113,27 @@ export default function SettingsModal({ initialTab }) {
           {TABS.map(([id, label, icon]) => (
             <button
               key={id}
+              type="button"
+              data-tab={id}
               className={cn('settings-nav-item', tab === id && 'active')}
-              onClick={() => setTab(id)}
+              onClick={() => selectTab(id)}
             >
               <Icon name={icon} size={15} />
-              {label}
+              <span>{label}</span>
             </button>
           ))}
           <div className="settings-nav-sep" />
           <div className="settings-nav-foot">
-            v{state.appInfo?.version || '1.0.0'}
+            v{state.appInfo?.version || '1.0.8'}
             <br />
-            {window.psychic?.platform === 'win32' ? 'Windows' : 'Desktop'} · local-first
+            {androidApp ? 'Android' : window.psychic?.platform === 'win32' ? 'Windows' : 'Desktop'} · local-first
           </div>
         </nav>
 
         <div className="settings-main">
           <div className="settings-head">
-            <div style={{ flex: 1 }}>
-              <div className="settings-title">{TABS.find((t) => t[0] === tab)?.[1]}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="settings-title">{activeTabLabel}</div>
               <div className="settings-subtitle">Настройки сохраняются автоматически</div>
             </div>
             <button className="icon-btn" onClick={close} title="Закрыть (Esc)">
@@ -103,7 +141,7 @@ export default function SettingsModal({ initialTab }) {
             </button>
           </div>
 
-          <div className="settings-body">
+          <div className="settings-body" ref={bodyRef}>
             {tab === 'general' && (
               <>
                 <div className="section">
@@ -114,15 +152,19 @@ export default function SettingsModal({ initialTab }) {
                       <option value="en">English</option>
                     </select>
                   </Field>
-                  <Field label="Запускать вместе с Windows" hint="PSYCHIC будет стартовать в фоне">
-                    <Switch value={!!config.general?.autostart} onChange={async (v) => {
-                      await invoke('app:setAutoLaunch', { enabled: v }).catch(() => {});
-                      set('general.autostart', v);
-                    }} />
-                  </Field>
-                  <Field label="Сворачивать в трей" hint="Не показывать иконку в панели задач">
-                    <Switch value={config.general?.tray !== false} onChange={(v) => set('general.tray', v)} />
-                  </Field>
+                  {!androidApp && (
+                    <>
+                      <Field label="Запускать вместе с Windows" hint="PSYCHIC будет стартовать в фоне">
+                        <Switch value={!!config.general?.autostart} onChange={async (v) => {
+                          await invoke('app:setAutoLaunch', { enabled: v }).catch(() => {});
+                          set('general.autostart', v);
+                        }} />
+                      </Field>
+                      <Field label="Сворачивать в трей" hint="Не показывать иконку в панели задач">
+                        <Switch value={config.general?.tray !== false} onChange={(v) => set('general.tray', v)} />
+                      </Field>
+                    </>
+                  )}
                   <Field label="Уведомления" hint="Показывать системное уведомление, когда ответ готов">
                     <Switch value={config.general?.notifications !== false} onChange={(v) => set('general.notifications', v)} />
                   </Field>
@@ -499,8 +541,9 @@ export default function SettingsModal({ initialTab }) {
                   <div>
                     <div className="about-name">PSYCHIC</div>
                     <div className="about-tagline">
-                      Локальный ИИ-ассистент с полным доступом к компьютеру.
-                      Бесплатные модели, скиллы, медиа-генерация и киберпанк-дизайн.
+                      {androidApp
+                        ? 'Автономный ИИ-ассистент на твоём смартфоне. Бесплатные модели, скиллы, медиа-генерация и киберпанк-дизайн.'
+                        : 'Локальный ИИ-ассистент с полным доступом к компьютеру. Бесплатные модели, скиллы, медиа-генерация и киберпанк-дизайн.'}
                     </div>
                   </div>
                 </div>
@@ -574,9 +617,9 @@ function CustomThemeCard({ active, custom, baseId, onApply, onClear }) {
 
   return (
     <div className={cn('theme-card', active && 'active')} style={{ gridColumn: '1 / -1', padding: 14 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <Icon name="wand" size={16} style={{ color: 'var(--accent)' }} />
-        <div style={{ flex: 1 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <Icon name="wand" size={16} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+        <div style={{ flex: 1, minWidth: 160 }}>
           <div className="theme-name">Свой стиль</div>
           <div className="theme-tagline">Собери палитру вручную поверх темы «{base.name}»</div>
         </div>
@@ -703,7 +746,7 @@ function ProvidersTab({ config, providers, onChange, onRefresh, toast }) {
         <div className="section-title"><Icon name="plug" size={13} /> Бесплатные провайдеры</div>
         <div className="section-hint">
           В PSYCHIC оставлены только бесплатные модели: часть работает сразу без ключа (OpenCode Console, Pollinations, локальные),
-          остальные — бесплатно по личному ключу регистрации. Ключи хранятся только на твоём ПК.
+          остальные — бесплатно по личному ключу регистрации. Ключи хранятся только локально на твоём устройстве.
         </div>
         <div className="picker-tabs" style={{ marginBottom: 12 }}>
           {[
@@ -727,13 +770,21 @@ function ProvidersTab({ config, providers, onChange, onRefresh, toast }) {
             const isOpen = expanded === provider.id;
             return (
               <div key={provider.id}>
-                <div className={cn('provider-row', draft.enabled && 'enabled')}>
-                  <div className="provider-logo" style={{ '--provider-color': provider.color }}>
+                <div className={cn('provider-row', draft.enabled && 'enabled', isOpen && 'open')}>
+                  <div
+                    className="provider-logo"
+                    style={{ '--provider-color': provider.color, cursor: 'pointer' }}
+                    onClick={() => setExpanded(isOpen ? null : provider.id)}
+                  >
                     {provider.name.slice(0, 2).toUpperCase()}
                   </div>
-                  <div className="provider-info">
+                  <div
+                    className="provider-info"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => setExpanded(isOpen ? null : provider.id)}
+                  >
                     <div className="provider-name">
-                      {provider.name}
+                      <span className="provider-name-text">{provider.name}</span>
                       {provider.badge && <span className="badge" style={{ fontSize: 8 }}>{provider.badge}</span>}
                       {provider.local && <span className="badge" style={{ fontSize: 8 }}>LOCAL</span>}
                     </div>
@@ -1045,7 +1096,7 @@ function MediaTab({ config, onChange }) {
           <input className="input mono" value={media.imageModel || ''} onChange={(e) => onChange('media.imageModel', e.target.value)} />
         </Field>
         <Field label="Размер по умолчанию">
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div style={{ display: 'flex', gap: 6, width: '100%' }}>
             <input className="input mono" style={{ width: 90 }} value={media.defaultWidth || 1024} onChange={(e) => onChange('media.defaultWidth', Number(e.target.value) || 1024)} />
             <span style={{ alignSelf: 'center', color: 'var(--text-faint)' }}>×</span>
             <input className="input mono" style={{ width: 90 }} value={media.defaultHeight || 1024} onChange={(e) => onChange('media.defaultHeight', Number(e.target.value) || 1024)} />

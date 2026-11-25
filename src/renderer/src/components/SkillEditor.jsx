@@ -75,7 +75,7 @@ export default function SkillEditor({ skill }) {
         </div>
 
         <div className="modal-body" style={{ maxHeight: '62vh' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="skill-editor-grid">
             <div>
               <div className="label" style={{ marginBottom: 5 }}>Название</div>
               <input className="input" value={form.name} onChange={(e) => update('name', e.target.value)} placeholder="Web Research" />
@@ -114,7 +114,7 @@ export default function SkillEditor({ skill }) {
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
+          <div className="skill-editor-grid" style={{ marginTop: 12 }}>
             <div>
               <div className="label" style={{ marginBottom: 5 }}>Иконка</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>

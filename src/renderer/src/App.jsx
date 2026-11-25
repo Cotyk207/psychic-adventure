@@ -48,7 +48,7 @@ const VIEW_META = {
 const VIEW_ORDER = ['dashboard', 'chat', 'skills', 'media', 'browser', 'files', 'terminal', 'music', 'memory'];
 
 function MainHead() {
-  const { state, dispatch, openSettings } = useApp();
+  const { state, dispatch, openSettings, createChat } = useApp();
   const meta = VIEW_META[state.view] || VIEW_META.chat;
   const provider = (state.providers || []).find((p) => p.id === (state.chat?.provider || state.config?.chat?.defaultProvider));
   const model = state.chat?.model || state.config?.chat?.defaultModel;
@@ -57,7 +57,7 @@ function MainHead() {
     + (state.streaming?.chatId === state.activeChatId && state.streaming?.reasoning ? 1 : 0);
 
   return (
-    <div className="main-head">
+    <div className={cn('main-head', state.view !== 'chat' && 'non-chat-head')}>
       {state.view === 'chat' ? (
         <div className="main-title">{state.chat?.title || 'Новый диалог'}</div>
       ) : (
@@ -82,14 +82,21 @@ function MainHead() {
             <button className="model-pill" onClick={() => dispatch({ type: 'SET_MODAL', modal: 'modelPicker' })}>
               <span className="dot" />
               <span>{modelMeta.name || model || 'выбрать модель'}</span>
-              {provider && <span style={{ color: 'var(--text-faint)' }}>· {provider.name}</span>}
+              {provider && <span className="hide-xs" style={{ color: 'var(--text-faint)' }}>· {provider.name}</span>}
+            </button>
+            <button
+              className="icon-btn mobile-only"
+              onClick={() => createChat()}
+              title="Новый диалог"
+            >
+              <Icon name="plus" size={16} />
             </button>
           </>
         )}
-        <button className="icon-btn" onClick={() => dispatch({ type: 'SET_MODAL', modal: 'palette' })} title="Палитра команд (Ctrl+K)">
+        <button className="icon-btn hide-mobile" onClick={() => dispatch({ type: 'SET_MODAL', modal: 'palette' })} title="Палитра команд (Ctrl+K)">
           <Icon name="search" size={15} />
         </button>
-        <button className="icon-btn" onClick={() => openSettings('general')} title="Настройки (Ctrl+,)">
+        <button className="icon-btn hide-mobile" onClick={() => openSettings('general')} title="Настройки (Ctrl+,)">
           <Icon name="settings" size={15} />
         </button>
       </div>

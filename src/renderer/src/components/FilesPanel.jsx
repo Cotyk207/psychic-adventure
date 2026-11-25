@@ -144,7 +144,7 @@ export default function FilesPanel() {
   return (
     <div className="files-layout">
       <div className="files-tree">
-        <div className="tree-section">Быстрый доступ</div>
+        <div className="tree-section hide-mobile">Быстрый доступ</div>
         {QUICK.map((item) => (
           <div
             key={item.key}
@@ -155,17 +155,17 @@ export default function FilesPanel() {
             <span className="tree-name">{item.label}</span>
           </div>
         ))}
-        <div className="tree-section">Инструменты</div>
-        <div className="tree-item" onClick={() => invoke('app:openPath', { path: state.appInfo?.paths?.workspace })}>
+        <div className="tree-section hide-mobile">Инструменты</div>
+        <div className="tree-item hide-mobile" onClick={() => invoke('app:openPath', { path: state.appInfo?.paths?.workspace })}>
           <Icon name="external" size={14} />
           <span className="tree-name">Открыть в проводнике</span>
         </div>
-        <div className="tree-item" onClick={() => invoke('app:openPath', { path: state.appInfo?.paths?.media })}>
+        <div className="tree-item" onClick={() => go(state.appInfo?.paths?.media || quick.workspace)}>
           <Icon name="folder-open" size={14} />
           <span className="tree-name">Папка медиа</span>
         </div>
-        <div className="tree-section">Подсказка</div>
-        <div style={{ padding: '4px 8px', fontSize: 10, color: 'var(--text-faint)', lineHeight: 1.6 }}>
+        <div className="tree-section hide-mobile">Подсказка</div>
+        <div className="hide-mobile" style={{ padding: '4px 8px', fontSize: 10, color: 'var(--text-faint)', lineHeight: 1.6 }}>
           Ассистент может читать и менять любые файлы — просто попроси его в чате.
         </div>
       </div>

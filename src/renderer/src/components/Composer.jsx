@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../lib/store';
-import { invoke } from '../lib/api';
+import { invoke, isAndroidApp } from '../lib/api';
 import { cn, isImageFile, readFromClipboard } from '../lib/utils';
 import { EFFORT_META, getModelMeta, resolveEffortForModel } from '../lib/models';
 import Icon from './Icon';
@@ -294,7 +294,9 @@ export default function Composer() {
           placeholder={
             listening
               ? 'Говори… запись идёт'
-              : 'Напиши запрос или начни с / для команд · ПКМ — копировать и вставить…'
+              : isAndroidApp()
+                ? 'Сообщение или / для быстрых команд…'
+                : 'Напиши запрос или начни с / для команд · ПКМ — копировать и вставить…'
           }
           rows={1}
           spellCheck={false}
@@ -339,7 +341,7 @@ export default function Composer() {
                 title="Настроить глубину рассуждений ИИ для этой модели"
               >
                 <Icon name="brain" size={13} />
-                <span>Рассуждение: {EFFORT_META[activeEffort]?.short || activeEffort}</span>
+                <span><span className="hide-xs">Рассуждение: </span>{EFFORT_META[activeEffort]?.short || activeEffort}</span>
                 <Icon name="chevron-down" size={11} />
               </button>
 

@@ -114,10 +114,11 @@ export default function SkillsPanel() {
       </div>
 
       {showGenerate && (
-        <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', background: 'color-mix(in srgb, var(--bg0) 30%, transparent)' }}>
-          <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)', background: 'color-mix(in srgb, var(--bg0) 30%, transparent)' }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <input
               className="input"
+              style={{ flex: '1 1 200px', minWidth: 0 }}
               placeholder="Опиши навык: «Анализ CSV и построение графиков на Python»…"
               value={description}
               onChange={(e) => setDescription(e.target.value)}

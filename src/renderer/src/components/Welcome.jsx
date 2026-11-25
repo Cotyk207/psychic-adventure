@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../lib/store';
+import { isAndroidApp } from '../lib/api';
 import { cn } from '../lib/utils';
 import Icon from './Icon';
 
@@ -61,8 +62,9 @@ export default function Welcome() {
         PSYCHIC
       </h1>
       <p className="welcome-sub">
-        Локальный ИИ-ассистент с доступом к твоему компьютеру. Пиши код, создавай приложения,
-        ищи в интернете, генерируй картинки и музыку — всё в одном неоновом интерфейсе.
+        {isAndroidApp()
+          ? 'Автономный ИИ-ассистент на твоём смартфоне. Пиши код, ищи в интернете, создавай файлы, картинки и музыку — всё в одном неоновом интерфейсе.'
+          : 'Локальный ИИ-ассистент с доступом к твоему компьютеру. Пиши код, создавай приложения, ищи в интернете, генерируй картинки и музыку — всё в одном неоновом интерфейсе.'}
       </p>
 
       <div className="welcome-stats">
@@ -145,8 +147,12 @@ export default function Welcome() {
             <div className="suggestion-icon">
               <Icon name={s.icon} size={15} />
             </div>
-            <div className="suggestion-title">{s.title}</div>
-            <div className="suggestion-text">{s.text}</div>
+            <div className="suggestion-title">
+              {s.title === 'Работа с ПК' && isAndroidApp() ? 'Работа с файлами' : s.title}
+            </div>
+            <div className="suggestion-text">
+              {s.title === 'Работа с ПК' && isAndroidApp() ? 'Покажи файлы в рабочей папке и наведи порядок' : s.text}
+            </div>
           </button>
         ))}
       </div>

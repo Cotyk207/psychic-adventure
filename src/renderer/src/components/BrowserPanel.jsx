@@ -95,7 +95,7 @@ export default function BrowserPanel() {
         <button className="icon-btn" onClick={() => action('back')} disabled={!browser.canGoBack} title="Назад">
           <Icon name="chevron-left" size={15} />
         </button>
-        <button className="icon-btn" onClick={() => action('forward')} disabled={!browser.canGoForward} title="Вперёд">
+        <button className="icon-btn hide-mobile" onClick={() => action('forward')} disabled={!browser.canGoForward} title="Вперёд">
           <Icon name="chevron-right" size={15} />
         </button>
         <button className="icon-btn" onClick={() => action('reload')} title="Обновить">
@@ -120,10 +120,10 @@ export default function BrowserPanel() {
           />
           {browser.loading && <span className="spinner sm" />}
         </form>
-        <button className="icon-btn" onClick={() => invoke('browser:open', { url: state.config?.browser?.homePage || 'https://duckduckgo.com' })} title="Домой">
+        <button className="icon-btn hide-mobile" onClick={() => invoke('browser:open', { url: state.config?.browser?.homePage || 'https://duckduckgo.com' })} title="Домой">
           <Icon name="home" size={14} />
         </button>
-        <button className="icon-btn" onClick={screenshot} title="Скриншот страницы">
+        <button className="icon-btn hide-mobile" onClick={screenshot} title="Скриншот страницы">
           <Icon name="camera" size={14} />
         </button>
         <button className="btn btn-sm" onClick={readToChat} title="Отправить текст страницы в чат">
