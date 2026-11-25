@@ -13,3 +13,4 @@ Thumbs.db
 .smoke/
 __pycache__/
 *.pyc
+release-web-apps-windows/
