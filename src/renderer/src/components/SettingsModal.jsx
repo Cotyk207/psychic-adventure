@@ -120,7 +120,7 @@ export default function SettingsModal({ initialTab }) {
           ))}
           <div className="settings-nav-sep" />
           <div className="settings-nav-foot">
-            v{state.appInfo?.version || '1.0.10'}
+            v{state.appInfo?.version || '1.0.11'}
             <br />
             {androidApp ? 'Android' : window.psychic?.platform === 'win32' ? 'Windows' : 'Desktop'} · local-first
           </div>

@@ -1159,3 +1159,30 @@ test('новые безключевые провайдеры: миграция, 
     assert.equal(adapter.buildHeaders({ id: 'ovhcloud', apiKey: 'secret' }).Authorization, undefined);
   } finally { globalThis.fetch = originalFetch; }
 });
+
+test('отдельные приложения сервисов используют только официальные сайты и не встраивают авторизацию', () => {
+  const root = path.resolve(__dirname, '..');
+  const gradle = fs.readFileSync(path.join(root, 'android/service-launcher/build.gradle'), 'utf8');
+  const android = fs.readFileSync(path.join(root, 'android/service-launcher/src/main/java/ai/psychic/launchers/MainActivity.java'), 'utf8');
+  const windows = fs.readFileSync(path.join(root, 'subscription-apps/windows/Launcher.cs'), 'utf8');
+  const manifest = fs.readFileSync(path.join(root, 'android/service-launcher/src/main/AndroidManifest.xml'), 'utf8');
+  const services = [
+    ['chatgpt', 'CHATGPT', 'https://chatgpt.com/'],
+    ['claude', 'CLAUDE', 'https://claude.ai/'],
+    ['gemini', 'GEMINI', 'https://gemini.google.com/'],
+    ['perplexity', 'PERPLEXITY', 'https://www.perplexity.ai/'],
+    ['copilot', 'COPILOT', 'https://copilot.microsoft.com/'],
+  ];
+  assert.match(android, /CustomTabsIntent/);
+  assert.doesNotMatch(android, /import android\.webkit|new WebView/);
+  assert.doesNotMatch(manifest, /android\.permission\.INTERNET/);
+  assert.match(gradle, /applicationIdSuffix/);
+  assert.match(windows, /DefaultAppModeBrowser/);
+  for (const [id, symbol, url] of services) {
+    assert.match(gradle, new RegExp(`${id}:`));
+    assert.ok(gradle.includes(url) && windows.includes(url));
+    assert.ok(windows.includes(`#if ${symbol}`) || windows.includes(`#elif ${symbol}`));
+    assert.ok(fs.existsSync(path.join(root, 'subscription-apps/icons', `${id}.ico`)));
+    assert.ok(fs.existsSync(path.join(root, 'android/service-launcher/src', id, 'res/drawable/ic_launcher.xml')));
+  }
+});

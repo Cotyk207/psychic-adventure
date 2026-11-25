@@ -1,0 +1,50 @@
+apply plugin: 'com.android.application'
+
+import groovy.json.JsonSlurper
+
+def pkgVer = new JsonSlurper().parseText(file('../../package.json').text).version
+def versionParts = pkgVer.tokenize('.').collect { it.isInteger() ? it.toInteger() : 0 }
+
+def launchers = [
+    chatgpt:    [name: 'ChatGPT',    url: 'https://chatgpt.com/'],
+    claude:     [name: 'Claude',     url: 'https://claude.ai/'],
+    gemini:     [name: 'Gemini',     url: 'https://gemini.google.com/'],
+    perplexity: [name: 'Perplexity', url: 'https://www.perplexity.ai/'],
+    copilot:    [name: 'Copilot',    url: 'https://copilot.microsoft.com/'],
+]
+
+android {
+    namespace 'ai.psychic.launchers'
+    compileSdk rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId 'ai.psychic.launchers'
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode versionParts[0] * 10000 + versionParts[1] * 100 + versionParts[2]
+        versionName pkgVer
+    }
+    buildFeatures { buildConfig true }
+    flavorDimensions += 'service'
+    productFlavors {
+        launchers.each { key, config ->
+            create(key) {
+                dimension 'service'
+                applicationIdSuffix ".${key}"
+                resValue 'string', 'app_name', "PSYCHIC · ${config.name}"
+                buildConfigField 'String', 'SERVICE_URL', "\"${config.url}\""
+                buildConfigField 'String', 'SERVICE_NAME', "\"${config.name}\""
+            }
+        }
+    }
+    buildTypes {
+        release {
+            // Matches the existing PSYCHIC Android release signing setup.
+            signingConfig signingConfigs.debug
+            minifyEnabled false
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.browser:browser:1.8.0'
+}

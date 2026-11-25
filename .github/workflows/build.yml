@@ -125,7 +125,7 @@ jobs:
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon
+          ./gradlew :app:assembleRelease :service-launcher:assembleRelease --no-daemon
 
       - name: Verify APK signature & stage release APK
         run: |
@@ -136,7 +136,15 @@ jobs:
           cp "$APK_SRC" "$APK_DST"
           APKSIGNER=$(ls -1 "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -n 1)
           "$APKSIGNER" verify --verbose "$APK_DST"
-          ls -lh "$APK_DST"
+          for entry in chatgpt:ChatGPT claude:Claude gemini:Gemini perplexity:Perplexity copilot:Copilot; do
+            flavor="${entry%%:*}"
+            name="${entry#*:}"
+            src="android/service-launcher/build/outputs/apk/${flavor}/release/service-launcher-${flavor}-release.apk"
+            dst="release-android/PSYCHIC-${name}-Android-${VER}.apk"
+            cp "$src" "$dst"
+            "$APKSIGNER" verify --verbose "$dst"
+          done
+          ls -lh release-android/*.apk
 
       - name: Upload Android APK artifact
         uses: actions/upload-artifact@v4
@@ -146,9 +154,28 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  build-service-launchers-windows:
+    needs: test
+    runs-on: windows-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build five independent service launchers
+        shell: powershell
+        run: ./subscription-apps/windows/build.ps1
+      - name: Upload Windows service launchers
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSYCHIC-Service-Launchers-Windows
+          path: release-web-apps-windows/*.exe
+          if-no-files-found: error
+          retention-days: 30
+
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build, build-android]
+    needs: [build, build-android, build-service-launchers-windows]
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -163,6 +190,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: PSYCHIC-Android-APK
+          path: dist-release
+
+      - name: Download Windows service launchers
+        uses: actions/download-artifact@v4
+        with:
+          name: PSYCHIC-Service-Launchers-Windows
           path: dist-release
 
       - name: List all release files
