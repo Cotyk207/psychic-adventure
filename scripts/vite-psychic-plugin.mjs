@@ -66,7 +66,7 @@ export function psychicAssetsPlugin() {
       const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
       const skills = loadBuiltinSkills();
       return [
-        `export const APP_VERSION = ${JSON.stringify(pkg.version || '1.0.8')};`,
+        `export const APP_VERSION = ${JSON.stringify(pkg.version || '1.0.9')};`,
         `export const BUILTIN_SKILLS = ${JSON.stringify(skills)};`,
       ].join('\n');
     },

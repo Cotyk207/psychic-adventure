@@ -34,11 +34,11 @@ export default function PermissionModal() {
             Настройки доступа меняются в разделе «Инструменты».
           </div>
         </div>
-        <div className="modal-foot" style={{ justifyContent: 'space-between' }}>
+        <div className="modal-foot" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
           <button className="btn btn-ghost" onClick={() => resolvePermission('deny')}>
             Отклонить
           </button>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button className="btn" onClick={() => resolvePermission('always')}>
               Всегда разрешать
             </button>

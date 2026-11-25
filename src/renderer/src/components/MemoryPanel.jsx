@@ -140,7 +140,7 @@ export default function MemoryPanel() {
         </button>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', borderBottom: '1px solid var(--border)' }}>
+      <div className="panel-subbar">
         <div className="search-input" style={{ flex: 1, maxWidth: 320 }}>
           <Icon name="search" size={13} />
           <input

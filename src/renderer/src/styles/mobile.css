@@ -1,5 +1,6 @@
 /* ══════════════════════════════════════════════════════════════════════════
    Мобильная адаптация для Android-смартфонов и компактных экранов
+   Принцип: «всё перед глазами» — 0 горизонтального скролла и 0 вылезающего текста
    (на десктопе > 860px сохраняет исходную двухколоночную раскладку)
    ══════════════════════════════════════════════════════════════════════════ */
 
@@ -18,12 +19,21 @@
   gap: 8px;
 }
 
+.panel-subbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
 .browser-reader {
   position: absolute;
   inset: 0;
   z-index: 4;
   padding: 16px;
   overflow-y: auto;
+  overflow-x: hidden;
   background: color-mix(in srgb, var(--bg0) 92%, var(--surface));
 }
 .browser-reader-head {
@@ -40,14 +50,14 @@
   font-size: 14px;
   font-weight: 700;
   color: var(--text);
+  overflow-wrap: anywhere;
 }
 .browser-reader-url {
   font-family: var(--font-mono);
   font-size: 10.5px;
   color: var(--accent);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .browser-reader-body {
   margin: 0;
@@ -56,7 +66,8 @@
   line-height: 1.68;
   color: var(--text-dim);
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
+  word-break: normal;
   user-select: text;
 }
 
@@ -69,11 +80,20 @@
     display: none !important;
   }
 
-  /* ── Каркас приложения (Flex-колонка: TitleBar → Body → [PlayerBar] → TabBar) ── */
+  /* ── Жёсткая блокировка горизонтального расползания по всему приложению ── */
+  html,
+  body,
+  #root {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
   .app {
     padding-top: env(safe-area-inset-top, 0px);
     display: flex !important;
     flex-direction: column !important;
+    width: 100%;
+    max-width: 100vw;
     height: 100%;
     overflow: hidden;
   }
@@ -81,12 +101,15 @@
   .titlebar {
     height: 46px;
     flex-shrink: 0;
+    width: 100%;
+    max-width: 100%;
     padding: 0 10px;
     gap: 8px;
     -webkit-app-region: no-drag;
   }
   .titlebar-left {
     gap: 8px;
+    min-width: 0;
   }
   .brand {
     gap: 8px;
@@ -102,6 +125,7 @@
   .titlebar-center {
     gap: 4px;
     margin-left: auto;
+    flex-shrink: 0;
   }
   .titlebar .icon-btn,
   .main-head .icon-btn {
@@ -113,9 +137,20 @@
   .app-body {
     flex: 1 1 auto;
     min-height: 0;
+    min-width: 0;
     width: 100%;
+    max-width: 100%;
     position: relative;
     display: flex;
+    overflow: hidden;
+  }
+
+  .main {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
   }
 
   /* ── Боковая шторка меню (Drawer) ────────────────────────────────────── */
@@ -134,7 +169,7 @@
     top: env(safe-area-inset-top, 0px);
     bottom: env(safe-area-inset-bottom, 0px);
     left: 0;
-    width: min(308px, 85vw) !important;
+    width: min(308px, 86vw) !important;
     z-index: 1100;
     background: color-mix(in srgb, var(--bg1) 98%, black) !important;
     border-right: 1px solid var(--border-strong);
@@ -163,6 +198,13 @@
   .sidebar .chat-item {
     padding: 9px 10px;
   }
+  .sidebar .chat-item-title {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
+  }
   .sidebar .chat-item.active .chat-item-actions {
     display: flex;
   }
@@ -179,6 +221,8 @@
     display: grid !important;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     align-items: center;
+    width: 100%;
+    max-width: 100%;
     gap: 2px;
     padding: 4px 6px calc(4px + env(safe-area-inset-bottom, 0px));
     background: color-mix(in srgb, var(--bg1) 97%, black);
@@ -206,28 +250,37 @@
     background: color-mix(in srgb, var(--accent) 12%, transparent);
   }
 
-  /* ── Компактная шапка чата (в панелях не дублирует заголовок панели) ─── */
+  /* ── Шапка чата: полное название диалога и модели без обрезки «...» ──── */
   .main-head {
     height: auto;
     min-height: 44px;
+    width: 100%;
+    max-width: 100%;
     padding: 6px 10px;
-    gap: 6px;
-    flex-wrap: nowrap;
+    gap: 6px 8px;
+    flex-wrap: wrap;
   }
   .main-head.non-chat-head {
     display: none !important;
   }
   .main-title {
-    flex: 1 1 auto;
+    flex: 1 1 90px;
     min-width: 0;
     max-width: none;
     font-size: 13px;
+    line-height: 1.28;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
   }
   .main-head-actions {
-    flex-shrink: 0;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 100%;
     gap: 5px;
-    flex-wrap: nowrap;
-    margin-left: 0;
+    flex-wrap: wrap;
+    margin-left: auto;
   }
   .reasoning-head-btn {
     padding: 5px 8px;
@@ -236,27 +289,54 @@
     display: none;
   }
   .model-pill {
-    max-width: 155px;
+    max-width: min(230px, 68vw);
+    min-width: 0;
+    height: auto;
     padding: 5px 9px;
     font-size: 11px;
     gap: 6px;
   }
+  .model-pill span {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    line-height: 1.22;
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
 
-  /* ── Чат, Приветствие, Сообщения и Композер ──────────────────────────── */
+  /* ── Чат, Сообщения на всю ширину и Адаптивные карточки таблиц ───────── */
+  .chat-view {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+  }
   .chat-scroll {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
     padding: 12px 0 8px;
   }
   .chat-inner {
-    padding: 0 10px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding: 0 12px;
   }
 
   .welcome {
-    padding: 14px 4px 22px;
+    padding: 14px 2px 22px;
+    max-width: 100%;
   }
   .welcome-badge {
     margin-bottom: 14px;
     font-size: 9px;
-    letter-spacing: 0.16em;
+    letter-spacing: 0.14em;
+    max-width: 100%;
+    white-space: normal;
+    text-align: center;
   }
   .welcome-logo {
     font-size: 32px;
@@ -268,8 +348,24 @@
     margin-top: 10px;
   }
   .welcome-stats {
-    gap: 8px 14px;
+    gap: 8px 12px;
     margin-top: 14px;
+  }
+  .welcome-stat {
+    min-width: 0;
+    max-width: 100%;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .welcome-stat b {
+    overflow-wrap: anywhere;
+  }
+  .prompt-use .truncate {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
   }
   .suggestions {
     grid-template-columns: 1fr !important;
@@ -283,32 +379,207 @@
     flex-direction: column;
   }
 
+  /* Сообщения занимают все 100% ширины без пустой левой колонки под аватар */
   .msg {
-    gap: 8px;
-    margin-bottom: 16px;
+    gap: 0;
+    margin-bottom: 18px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
   }
   .msg-avatar {
-    width: 26px;
-    height: 26px;
-    font-size: 10px;
+    display: none !important;
   }
   .msg-body {
-    max-width: calc(100% - 34px);
+    width: 100%;
+    max-width: 100% !important;
+    min-width: 0;
+  }
+  .msg.user .msg-body {
+    width: auto;
+    max-width: 92% !important;
+    margin-left: auto;
+  }
+  .msg-head {
+    flex-wrap: wrap;
+    gap: 4px 8px;
+  }
+  .msg-model {
+    max-width: 100%;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
   }
   .msg-bubble {
+    max-width: 100%;
     padding: 10px 13px;
+    overflow-wrap: anywhere;
   }
+  .msg-attachment {
+    max-width: 100%;
+  }
+  .msg-attachment .name {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  /* Markdown: слова не рвутся по слогам, а длинные пути и таблицы — все перед глазами */
   .msg-content {
+    min-width: 0;
+    max-width: 100%;
     font-size: calc(14px * var(--font-scale));
     line-height: 1.62;
+    word-break: normal;
+    overflow-wrap: anywhere;
   }
-  .msg-content table {
-    display: block;
-    overflow-x: auto;
+  .msg-content p,
+  .msg-content li,
+  .msg-content blockquote,
+  .msg-content a {
+    word-break: normal;
+    overflow-wrap: anywhere;
+  }
+  .msg-content ul,
+  .msg-content ol {
+    padding-left: 1.15em;
+  }
+  .msg-content code:not(pre code) {
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: anywhere;
+    padding: 1px 5px;
+  }
+
+  /* Блоки кода переносят строки прямо на экране без слепого скролла вправо */
+  .code-block {
+    max-width: 100%;
+    overflow: hidden;
   }
   .code-block pre {
     padding: 11px 12px;
+    white-space: pre-wrap !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word;
+    overflow-x: hidden !important;
   }
+  .code-block code {
+    white-space: pre-wrap !important;
+    overflow-wrap: anywhere !important;
+    font-size: 12px;
+  }
+
+  /* Таблицы Markdown превращаются в аккуратные полноширинные карточки */
+  .msg-content .table-wrap {
+    width: 100%;
+    max-width: 100%;
+    overflow: visible !important;
+    margin: 10px 0;
+  }
+  .msg-content table {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    overflow: visible !important;
+    margin: 0 !important;
+  }
+  .msg-content table.has-headers thead {
+    display: none !important;
+  }
+  .msg-content thead {
+    display: block;
+    width: 100%;
+    margin-bottom: 6px;
+  }
+  .msg-content thead tr {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    width: 100%;
+  }
+  .msg-content tbody {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+  .msg-content tbody tr {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 7px !important;
+    width: 100% !important;
+    padding: 11px 12px !important;
+    border: 1px solid var(--border-strong) !important;
+    border-radius: 11px !important;
+    background: color-mix(in srgb, var(--surface) 64%, transparent) !important;
+  }
+  .msg-content tbody td {
+    display: block !important;
+    width: 100% !important;
+    padding: 0 0 7px !important;
+    border: 0 !important;
+    border-bottom: 1px dashed color-mix(in srgb, var(--border) 60%, transparent) !important;
+    font-size: 13.5px !important;
+    line-height: 1.52 !important;
+    text-align: left !important;
+    word-break: normal !important;
+    overflow-wrap: anywhere !important;
+  }
+  .msg-content tbody td:last-child {
+    padding-bottom: 0 !important;
+    border-bottom: 0 !important;
+  }
+  .msg-content tbody td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 3px;
+  }
+
+  /* Карточки рассуждений и вызовов инструментов без вылета за правый край */
+  .reasoning-head {
+    flex-wrap: wrap;
+    gap: 6px 8px;
+  }
+  .reasoning-stats {
+    margin-left: 0;
+  }
+  .reasoning-head-actions {
+    margin-left: auto;
+  }
+  .reasoning-body,
+  .reasoning-card-text {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    overflow-x: hidden;
+  }
+  .tool-head {
+    flex-wrap: wrap;
+    gap: 6px 8px;
+  }
+  .tool-name,
+  .tool-label {
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+  .tool-status {
+    white-space: normal;
+    flex-wrap: wrap;
+  }
+  .tool-body {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    overflow-x: hidden;
+  }
+
   .msg-actions {
     opacity: 1 !important;
     flex-wrap: wrap;
@@ -319,19 +590,30 @@
     font-size: 10.5px;
   }
 
+  /* ── Композер: 100% внутри экрана, кнопка отправки всегда целиком видна ── */
   .composer-wrap {
-    padding: 6px 8px 8px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding: 6px 10px 8px;
   }
   .composer {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     border-radius: 14px;
   }
   .composer-input {
+    width: 100%;
+    max-width: 100%;
     font-size: 16px;
     line-height: 1.45;
     padding: 11px 12px 5px;
     min-height: 24px;
   }
   .composer-tools {
+    width: 100%;
+    max-width: 100%;
     padding: 5px 8px 8px;
     gap: 4px;
     flex-wrap: wrap;
@@ -340,23 +622,37 @@
     width: 34px;
     height: 34px;
   }
+  /* Селектор модели уже показан в верхней шапке чата — не дублируем и не жмём кнопку отправки */
+  .composer-model,
   .composer-hint,
   .composer-tokens {
     display: none !important;
-  }
-  .composer-model {
-    max-width: 124px;
-    padding: 4px 7px;
   }
   .effort-popover {
     width: min(272px, calc(100vw - 24px));
     left: 0;
   }
+  .slash-item {
+    flex-wrap: wrap;
+    gap: 3px 8px;
+  }
+  .slash-desc {
+    white-space: normal;
+    line-height: 1.35;
+  }
+  .composer-banner {
+    flex-wrap: wrap;
+  }
   .composer-banner span:last-child {
     display: none;
   }
 
-  /* ── Обзор (Dashboard) ───────────────────────────────────────────────── */
+  /* ── Обзор (Dashboard): все цифры, подписи и задачи полностью видны ──── */
+  .dash {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
   .dash-hero {
     flex-direction: column;
     align-items: stretch;
@@ -366,6 +662,10 @@
   .dash-title {
     font-size: 20px;
   }
+  .dash-sub {
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
   .dash-hero-actions {
     width: 100%;
   }
@@ -374,6 +674,7 @@
   }
   .dash-scroll {
     padding: 12px 12px 24px;
+    overflow-x: hidden;
   }
   .dash-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
@@ -381,63 +682,129 @@
   }
   .dash-tile {
     padding: 11px 12px;
+    min-width: 0;
   }
   .dash-tile-value {
     font-size: 18px;
+    overflow-wrap: anywhere;
+  }
+  .dash-tile-sub {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
   }
   .dash-actions {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: 6px;
   }
+  .dash-action {
+    white-space: normal;
+    line-height: 1.3;
+    text-align: left;
+  }
+  .dash-starter {
+    white-space: normal;
+    line-height: 1.35;
+  }
+  .dash-task {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 8px;
+  }
+  .dash-task-title {
+    grid-column: 1 / -1;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
+  }
+  .dash-task-time {
+    white-space: normal;
+  }
+  .dash-chat .truncate {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
+  }
   .dash-kv {
     grid-template-columns: 1fr !important;
   }
+  .dash-kv > div {
+    flex-wrap: wrap;
+  }
+  .dash-kv .truncate {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    overflow-wrap: anywhere;
+  }
 
-  /* ── Панели: общие шапки, Файлы, Медиа, Скиллы, Музыка, Память, Браузер ─ */
+  /* ── Панели: все вкладки, пути и названия переносятся перед глазами ──── */
+  .panel {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+  .panel-body {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
   .panel-head {
     padding: 10px 12px;
     gap: 8px;
     flex-wrap: wrap;
   }
   .panel-head .segmented {
+    display: flex;
+    flex-wrap: wrap !important;
     max-width: 100%;
-    overflow-x: auto;
-    scrollbar-width: none;
+    overflow: visible !important;
+    gap: 3px;
   }
-  .panel-head .segmented::-webkit-scrollbar {
-    display: none;
+  .panel-subbar {
+    padding: 8px 12px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .panel-subbar .search-input {
+    flex: 1 1 170px;
+    max-width: none !important;
   }
 
-  /* Файлы: быстрый доступ превращается в горизонтальную ленту чипов */
+  /* Файлы: все быстрые папки и полный путь видны сразу на экране */
   .files-layout {
     display: flex !important;
     flex-direction: column !important;
     grid-template-columns: none !important;
     flex: 1;
     min-height: 0;
+    min-width: 0;
     overflow: hidden;
   }
   .files-tree {
     display: flex !important;
     flex-direction: row !important;
+    flex-wrap: wrap !important;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     padding: 8px 10px !important;
     border-right: 0 !important;
     border-bottom: 1px solid var(--border);
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
+    overflow: visible !important;
     flex-shrink: 0;
-    scrollbar-width: none;
-  }
-  .files-tree::-webkit-scrollbar {
-    display: none;
   }
   .files-tree .tree-item {
     flex: 0 0 auto;
     white-space: nowrap;
     margin: 0;
-    padding: 6px 11px;
+    padding: 5px 10px;
+    font-size: 11.5px;
     border-radius: 99px;
     border: 1px solid var(--border);
     background: color-mix(in srgb, var(--surface) 52%, transparent);
@@ -451,6 +818,7 @@
   .files-main {
     flex: 1 1 auto;
     min-height: 0;
+    min-width: 0;
   }
   .files-toolbar {
     padding: 8px 10px;
@@ -458,12 +826,28 @@
     flex-wrap: wrap;
   }
   .files-path {
-    min-width: 140px;
+    flex: 1 1 100%;
+    order: 10;
+    flex-wrap: wrap;
+    white-space: normal !important;
+    overflow: visible !important;
+    word-break: break-all;
+    line-height: 1.35;
+  }
+  .files-path span {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
   }
   .files-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: 8px;
     padding: 10px;
+  }
+  .file-card-name {
+    max-height: none !important;
+    overflow: visible !important;
+    overflow-wrap: anywhere;
   }
 
   /* Медиа-студия */
@@ -474,6 +858,7 @@
     gap: 12px;
     padding: 12px;
     overflow-y: auto !important;
+    overflow-x: hidden !important;
   }
   .media-controls {
     overflow: visible;
@@ -489,8 +874,26 @@
     overflow: visible;
     padding: 10px !important;
   }
+  .media-item-meta {
+    flex-wrap: wrap;
+    white-space: normal;
+  }
   .media-item-actions {
     opacity: 1 !important;
+  }
+
+  /* Музыка */
+  .track-row {
+    align-items: flex-start;
+    padding: 9px 10px;
+  }
+  .track-title.truncate,
+  .track-artist.truncate {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
   }
 
   /* Скиллы */
@@ -508,11 +911,18 @@
     padding: 12px;
     gap: 10px;
   }
+  .skill-foot {
+    flex-wrap: wrap;
+  }
 
   /* Браузер */
   .browser-toolbar {
     padding: 7px 8px;
     gap: 5px;
+    flex-wrap: wrap;
+  }
+  .browser-url {
+    min-width: 150px;
   }
   .browser-url input {
     font-size: 13px;
@@ -524,6 +934,7 @@
     flex-direction: column !important;
     grid-template-columns: none !important;
     overflow-y: auto !important;
+    overflow-x: hidden !important;
   }
   .memory-layout > .memory-list {
     padding: 12px;
@@ -544,6 +955,8 @@
   .player-bar {
     padding: 7px 10px;
     gap: 8px;
+    width: 100%;
+    max-width: 100%;
   }
   .player-meta {
     flex: 1 1 auto;
@@ -574,12 +987,20 @@
   .modal-head {
     padding: 13px 14px;
     flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+  .modal-head .modal-title.truncate {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
   }
   .modal-body {
     padding: 14px;
     max-height: calc(92dvh - 122px) !important;
     flex: 1 1 auto;
     min-height: 0;
+    overflow-x: hidden;
   }
   .modal-foot {
     padding: 10px 14px;
@@ -587,7 +1008,7 @@
     flex-shrink: 0;
   }
 
-  /* Полноэкранный режим Настроек на телефоне без боковой колонки 236px! */
+  /* Полноэкранный режим Настроек на телефоне */
   .modal-backdrop.settings-backdrop {
     padding: 0 !important;
     align-items: stretch !important;
@@ -622,6 +1043,7 @@
     min-width: 0;
     font-size: 13.5px;
     font-weight: 700;
+    flex-wrap: wrap;
   }
   .settings-mobile-heading {
     letter-spacing: 0.04em;
@@ -631,9 +1053,6 @@
   }
   .settings-mobile-section {
     color: var(--accent);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
   .settings-mobile-bar .icon-btn {
     width: 36px;
@@ -641,25 +1060,20 @@
     border-radius: 9px;
   }
 
-  /* Горизонтальная скроллируемая лента разделов вместо узкого левого меню */
+  /* Все разделы настроек переносятся компактными пилюлями прямо перед глазами */
   .settings-nav {
     display: flex !important;
     flex-direction: row !important;
+    flex-wrap: wrap !important;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     width: 100% !important;
-    padding: 8px 12px !important;
+    padding: 8px 10px !important;
     border-right: 0 !important;
     border-bottom: 1px solid var(--border);
     background: color-mix(in srgb, var(--bg0) 65%, var(--bg1));
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
+    overflow: visible !important;
     flex-shrink: 0;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-  }
-  .settings-nav::-webkit-scrollbar {
-    display: none;
   }
   .settings-nav-brand,
   .settings-nav-sep,
@@ -670,10 +1084,10 @@
     width: auto !important;
     flex: 0 0 auto !important;
     white-space: nowrap !important;
-    padding: 7px 12px !important;
-    gap: 6px !important;
+    padding: 5px 10px !important;
+    gap: 5px !important;
     border-radius: 99px !important;
-    font-size: 12px !important;
+    font-size: 11.5px !important;
     border: 1px solid var(--border);
     background: color-mix(in srgb, var(--surface) 52%, transparent);
   }
@@ -698,10 +1112,11 @@
     flex: 1 1 auto;
     padding: 14px 14px calc(24px + env(safe-area-inset-bottom, 0px)) !important;
     overflow-y: auto;
+    overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
   }
 
-  /* Поля настроек: тумблеры в одну строку, селекты и инпуты — на всю ширину */
+  /* Поля настроек */
   .field.field-inline {
     flex-direction: row;
     align-items: center;
@@ -731,16 +1146,17 @@
     flex: 1 1 auto;
   }
 
-  /* Карточки провайдеров на всю ширину экрана */
+  /* Карточки провайдеров, тем и путей без обрезки текста */
   .provider-row {
     padding: 11px 12px;
     gap: 10px;
-    align-items: center;
+    align-items: flex-start;
   }
   .provider-logo {
     width: 36px;
     height: 36px;
     border-radius: 10px;
+    margin-top: 2px;
   }
   .provider-info {
     flex: 1 1 auto;
@@ -752,12 +1168,10 @@
     font-size: 13px;
   }
   .provider-tagline {
-    white-space: normal;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    line-height: 1.35;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    line-height: 1.4;
     margin-top: 3px;
   }
   .provider-url {
@@ -766,6 +1180,7 @@
   .provider-actions {
     gap: 6px;
     flex-shrink: 0;
+    margin-top: 2px;
   }
   .provider-actions .icon-btn.sm {
     width: 32px;
@@ -781,11 +1196,24 @@
     grid-template-columns: 1fr !important;
     gap: 8px;
   }
+  .model-row {
+    flex-wrap: wrap;
+    gap: 6px;
+    overflow-wrap: anywhere;
+  }
+  .model-row .model-actions {
+    opacity: 1 !important;
+  }
 
-  /* Темы, обои, доступ, скиллы, автоматизация, о программе */
   .theme-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: 8px;
+  }
+  .theme-tagline {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    line-height: 1.3;
   }
   .wallpaper-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
@@ -795,11 +1223,27 @@
   .data-actions {
     grid-template-columns: 1fr !important;
   }
+  .root-item {
+    flex-wrap: wrap;
+  }
+  .root-item span {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    overflow-wrap: anywhere;
+  }
   .skill-toggle-row {
-    gap: 8px;
+    flex-wrap: wrap;
+    gap: 6px 8px;
   }
   .skill-toggle-row .skill-mini-desc {
-    display: none;
+    flex: 1 1 100%;
+    max-width: none;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    padding-left: 32px;
+    line-height: 1.35;
   }
   .automation-row {
     flex-direction: column;
@@ -818,23 +1262,27 @@
   .about-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
-  .about-stat:has(.v:nth-child(2)) {
-    min-width: 0;
-  }
 
   /* Выбор модели, Онбординг, Палитра команд, Редактор скилла */
   .picker-tabs {
-    flex-wrap: nowrap !important;
-    overflow-x: auto;
-    scrollbar-width: none;
-    padding-bottom: 2px;
-  }
-  .picker-tabs::-webkit-scrollbar {
-    display: none;
+    flex-wrap: wrap !important;
+    overflow: visible !important;
+    gap: 5px;
   }
   .picker-tab {
     flex: 0 0 auto;
     white-space: nowrap;
+  }
+  .picker-provider-head {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .picker-model-id {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  .picker-model-sub {
+    flex-wrap: wrap;
   }
   .picker-locked-card {
     flex-wrap: wrap;
@@ -869,6 +1317,9 @@
     margin-top: 8px;
     width: 100%;
     max-height: 86dvh;
+  }
+  .palette-item {
+    flex-wrap: wrap;
   }
   .palette-item .shortcut {
     display: none;

@@ -68,10 +68,6 @@ export default function SettingsModal({ initialTab }) {
     } catch {
       if (bodyRef.current) bodyRef.current.scrollTop = 0;
     }
-    setTimeout(() => {
-      const btn = navRef.current?.querySelector?.(`[data-tab="${nextTab}"]`);
-      btn?.scrollIntoView?.({ inline: 'center', block: 'nearest', behavior: 'smooth' });
-    }, 20);
   };
 
   useEffect(() => {
@@ -124,7 +120,7 @@ export default function SettingsModal({ initialTab }) {
           ))}
           <div className="settings-nav-sep" />
           <div className="settings-nav-foot">
-            v{state.appInfo?.version || '1.0.8'}
+            v{state.appInfo?.version || '1.0.9'}
             <br />
             {androidApp ? 'Android' : window.psychic?.platform === 'win32' ? 'Windows' : 'Desktop'} · local-first
           </div>
