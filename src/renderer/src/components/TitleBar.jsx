@@ -11,7 +11,7 @@ export default function TitleBar({ onToggleMobileNav }) {
   const appearance = config?.appearance || {};
   const themeId = appearance.theme;
   const theme = THEMES.find((t) => t.id === themeId) || THEMES[0];
-  const version = state.appInfo?.version || '1.0.7';
+  const version = state.appInfo?.version || '1.0.8';
   const desktopWindow = isElectron();
 
   const cycleTheme = () => {
@@ -59,7 +59,7 @@ export default function TitleBar({ onToggleMobileNav }) {
         >
           <Icon name="palette" size={15} />
         </button>
-        <button className="icon-btn" onClick={() => openSettings('appearance')} title="Настройки">
+        <button className="icon-btn" onClick={() => openSettings('general')} title="Настройки">
           <Icon name="settings" size={15} />
         </button>
       </div>

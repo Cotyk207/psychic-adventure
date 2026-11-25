@@ -2,12 +2,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { useApp } from '../lib/store';
-import { invoke, on } from '../lib/api';
+import { invoke, on, isAndroidApp } from '../lib/api';
 import { cn } from '../lib/utils';
 import Icon from './Icon';
 
 export default function TerminalPanel() {
-  const { state, toast } = useApp();
+  const { state, toast, setView } = useApp();
+  const androidApp = isAndroidApp();
   const [sessions, setSessions] = useState([]);
   const [activeId, setActiveId] = useState(null);
   const containerRef = useRef(null);
@@ -35,7 +36,7 @@ export default function TerminalPanel() {
   createRef.current = createSession;
 
   useEffect(() => {
-    if (!containerRef.current) return undefined;
+    if (androidApp || !containerRef.current) return undefined;
 
     const term = new Terminal({
       cursorBlink: true,
@@ -147,6 +148,32 @@ export default function TerminalPanel() {
     });
     buffers.current.delete(id);
   };
+
+  if (androidApp) {
+    return (
+      <div className="terminal-panel">
+        <div className="terminal-empty" style={{ padding: 24 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, maxWidth: 320 }}>
+            <div className="about-logo" style={{ width: 52, height: 52, borderRadius: 14 }}>
+              <Icon name="terminal" size={24} style={{ color: 'var(--accent)' }} />
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Системный терминал ПК</div>
+            <div style={{ fontSize: 12.5, lineHeight: 1.6, color: 'var(--text-dim)' }}>
+              Интерактивная оболочка CMD / PowerShell / Bash работает в десктопной версии PSYCHIC. На Android используй Диалог или Файлы — ИИ сам умеет создавать файлы, писать код и искать в сети.
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginTop: 4 }}>
+              <button className="btn btn-primary" onClick={() => setView('chat')}>
+                <Icon name="message-square" size={14} /> Открыть чат
+              </button>
+              <button className="btn" onClick={() => setView('files')}>
+                <Icon name="folder" size={14} /> Файлы
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="terminal-panel">

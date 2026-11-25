@@ -52,3 +52,8 @@ export function isElectron() {
   const b = typeof window !== 'undefined' && window.psychic ? window.psychic : bridge;
   return Boolean(b?.isElectron);
 }
+
+export function isAndroidApp() {
+  const b = typeof window !== 'undefined' && window.psychic ? window.psychic : bridge;
+  return b?.platform === 'android' || Boolean(b?.isAndroid);
+}

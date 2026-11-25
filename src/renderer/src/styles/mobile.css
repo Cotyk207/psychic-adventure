@@ -1,10 +1,21 @@
 /* ══════════════════════════════════════════════════════════════════════════
    Мобильная адаптация для Android-смартфонов и компактных экранов
-   (на десктопе > 860px ничего не меняет)
+   (на десктопе > 860px сохраняет исходную двухколоночную раскладку)
    ══════════════════════════════════════════════════════════════════════════ */
 
 .mobile-only {
   display: none;
+}
+
+.skill-editor-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.onboarding-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .browser-reader {
@@ -53,65 +64,126 @@
   .mobile-only {
     display: inline-flex;
   }
+  .hide-mobile,
   .hide-xs {
     display: none !important;
   }
 
+  /* ── Каркас приложения (Flex-колонка: TitleBar → Body → [PlayerBar] → TabBar) ── */
   .app {
     padding-top: env(safe-area-inset-top, 0px);
-    grid-template-rows: var(--titlebar-h) 1fr auto;
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100%;
+    overflow: hidden;
   }
 
   .titlebar {
+    height: 46px;
+    flex-shrink: 0;
     padding: 0 10px;
+    gap: 8px;
     -webkit-app-region: no-drag;
   }
+  .titlebar-left {
+    gap: 8px;
+  }
+  .brand {
+    gap: 8px;
+    -webkit-app-region: no-drag;
+  }
+  .brand-name {
+    font-size: 12.5px;
+    letter-spacing: 0.2em;
+  }
   .brand-version {
-    display: none;
+    display: none !important;
+  }
+  .titlebar-center {
+    gap: 4px;
+    margin-left: auto;
+  }
+  .titlebar .icon-btn,
+  .main-head .icon-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
   }
 
   .app-body {
-    grid-template-columns: 1fr !important;
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
     position: relative;
+    display: flex;
   }
 
+  /* ── Боковая шторка меню (Drawer) ────────────────────────────────────── */
   .sidebar-backdrop {
-    display: block;
+    display: block !important;
     position: fixed;
     inset: 0;
-    z-index: 880;
-    background: rgba(3, 5, 12, 0.72);
+    z-index: 1080;
+    background: rgba(3, 5, 12, 0.76);
     backdrop-filter: blur(6px);
   }
 
-  .sidebar {
+  .sidebar,
+  .sidebar.collapsed {
     position: fixed !important;
-    top: calc(var(--titlebar-h) + env(safe-area-inset-top, 0px));
-    bottom: 0;
+    top: env(safe-area-inset-top, 0px);
+    bottom: env(safe-area-inset-bottom, 0px);
     left: 0;
-    width: min(300px, 84vw) !important;
-    z-index: 900;
-    background: color-mix(in srgb, var(--bg1) 97%, black) !important;
+    width: min(308px, 85vw) !important;
+    z-index: 1100;
+    background: color-mix(in srgb, var(--bg1) 98%, black) !important;
     border-right: 1px solid var(--border-strong);
-    box-shadow: 20px 0 50px rgba(0, 0, 0, 0.7);
+    box-shadow: 24px 0 60px rgba(0, 0, 0, 0.78);
     transform: translateX(-105%);
     transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
   }
   .sidebar.mobile-open {
     transform: translateX(0);
   }
+  .sidebar.collapsed .nav-label,
+  .sidebar.collapsed .brand-text,
+  .sidebar.collapsed .chats,
+  .sidebar.collapsed .sidebar-foot .status-text,
+  .sidebar.collapsed .sidebar-foot .user-name,
+  .sidebar.collapsed .chat-item-title,
+  .sidebar.collapsed .sidebar-section-title,
+  .sidebar.collapsed .new-chat-btn span {
+    display: revert;
+  }
+  .sidebar .nav-item {
+    justify-content: flex-start;
+    padding: 10px 12px;
+    font-size: 13.5px;
+  }
+  .sidebar .chat-item {
+    padding: 9px 10px;
+  }
+  .sidebar .chat-item.active .chat-item-actions {
+    display: flex;
+  }
+  .sidebar .chat-item-btn {
+    padding: 5px;
+  }
 
   .statusbar {
     display: none !important;
   }
 
+  /* ── Нижняя навигационная панель смартфона ───────────────────────────── */
   .mobile-tabbar {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    display: grid !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     align-items: center;
+    gap: 2px;
     padding: 4px 6px calc(4px + env(safe-area-inset-bottom, 0px));
-    background: color-mix(in srgb, var(--bg1) 96%, black);
+    background: color-mix(in srgb, var(--bg1) 97%, black);
     border-top: 1px solid var(--border);
+    flex-shrink: 0;
     z-index: 50;
   }
   .mobile-tab-item {
@@ -119,156 +191,698 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 2px;
-    padding: 6px 2px;
+    gap: 3px;
+    min-height: 48px;
+    padding: 5px 2px;
     border: 0;
-    border-radius: 9px;
+    border-radius: 10px;
     background: transparent;
     color: var(--text-faint);
-    font-size: 10px;
+    font-size: 10.5px;
     font-weight: 500;
   }
   .mobile-tab-item.active {
     color: var(--accent);
-    background: color-mix(in srgb, var(--accent) 11%, transparent);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
   }
 
-  /* Шапка экрана и сообщения чата */
+  /* ── Компактная шапка чата (в панелях не дублирует заголовок панели) ─── */
   .main-head {
-    padding: 8px 12px;
+    height: auto;
+    min-height: 44px;
+    padding: 6px 10px;
     gap: 6px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+  }
+  .main-head.non-chat-head {
+    display: none !important;
   }
   .main-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: none;
     font-size: 13px;
-    max-width: 100%;
   }
   .main-head-actions {
+    flex-shrink: 0;
     gap: 5px;
-    flex-wrap: wrap;
-    margin-left: auto;
+    flex-wrap: nowrap;
+    margin-left: 0;
+  }
+  .reasoning-head-btn {
+    padding: 5px 8px;
   }
   .reasoning-head-btn span:not(.count) {
     display: none;
   }
   .model-pill {
-    max-width: 185px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    max-width: 155px;
     padding: 5px 9px;
     font-size: 11px;
+    gap: 6px;
   }
 
-  .messages {
-    padding: 12px 10px 14px;
+  /* ── Чат, Приветствие, Сообщения и Композер ──────────────────────────── */
+  .chat-scroll {
+    padding: 12px 0 8px;
   }
+  .chat-inner {
+    padding: 0 10px;
+  }
+
+  .welcome {
+    padding: 14px 4px 22px;
+  }
+  .welcome-badge {
+    margin-bottom: 14px;
+    font-size: 9px;
+    letter-spacing: 0.16em;
+  }
+  .welcome-logo {
+    font-size: 32px;
+    letter-spacing: 0.18em;
+  }
+  .welcome-sub {
+    font-size: 12.5px;
+    line-height: 1.55;
+    margin-top: 10px;
+  }
+  .welcome-stats {
+    gap: 8px 14px;
+    margin-top: 14px;
+  }
+  .suggestions {
+    grid-template-columns: 1fr !important;
+    gap: 8px;
+    margin-top: 18px;
+  }
+  .suggestion {
+    padding: 12px 13px;
+  }
+  .prompt-add {
+    flex-direction: column;
+  }
+
   .msg {
-    gap: 9px;
-    padding: 8px 4px;
+    gap: 8px;
+    margin-bottom: 16px;
   }
   .msg-avatar {
-    width: 28px;
-    height: 28px;
-    font-size: 9px;
+    width: 26px;
+    height: 26px;
+    font-size: 10px;
+  }
+  .msg-body {
+    max-width: calc(100% - 34px);
+  }
+  .msg-bubble {
+    padding: 10px 13px;
+  }
+  .msg-content {
+    font-size: calc(14px * var(--font-scale));
+    line-height: 1.62;
+  }
+  .msg-content table {
+    display: block;
+    overflow-x: auto;
+  }
+  .code-block pre {
+    padding: 11px 12px;
   }
   .msg-actions {
     opacity: 1 !important;
     flex-wrap: wrap;
-    gap: 5px;
+    gap: 4px;
+  }
+  .msg-action {
+    padding: 5px 8px;
+    font-size: 10.5px;
   }
 
-  /* Композер чата под экран смартфона */
   .composer-wrap {
-    padding: 6px 8px 10px;
+    padding: 6px 8px 8px;
   }
   .composer {
-    padding: 9px 10px 8px;
+    border-radius: 14px;
   }
   .composer-input {
     font-size: 16px;
+    line-height: 1.45;
+    padding: 11px 12px 5px;
     min-height: 24px;
   }
   .composer-tools {
+    padding: 5px 8px 8px;
+    gap: 4px;
     flex-wrap: wrap;
-    gap: 5px;
   }
-  .composer-hint {
-    display: none;
+  .composer-tools .icon-btn {
+    width: 34px;
+    height: 34px;
+  }
+  .composer-hint,
+  .composer-tokens {
+    display: none !important;
   }
   .composer-model {
-    max-width: 145px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    max-width: 124px;
+    padding: 4px 7px;
   }
   .effort-popover {
-    width: min(270px, calc(100vw - 28px));
+    width: min(272px, calc(100vw - 24px));
     left: 0;
   }
-
-  /* Приветственный экран и панели */
-  .welcome {
-    padding: 18px 12px;
+  .composer-banner span:last-child {
+    display: none;
   }
-  .welcome-grid,
-  .dash-grid,
-  .stats-grid,
-  .skills-grid,
-  .media-grid {
+
+  /* ── Обзор (Dashboard) ───────────────────────────────────────────────── */
+  .dash-hero {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 14px 12px;
+  }
+  .dash-title {
+    font-size: 20px;
+  }
+  .dash-hero-actions {
+    width: 100%;
+  }
+  .dash-hero-actions .btn {
+    flex: 1;
+  }
+  .dash-scroll {
+    padding: 12px 12px 24px;
+  }
+  .dash-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px;
+  }
+  .dash-tile {
+    padding: 11px 12px;
+  }
+  .dash-tile-value {
+    font-size: 18px;
+  }
+  .dash-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px;
+  }
+  .dash-kv {
     grid-template-columns: 1fr !important;
   }
 
-  .files-layout,
-  .media-layout,
-  .music-layout,
-  .memory-layout {
-    grid-template-columns: 1fr !important;
+  /* ── Панели: общие шапки, Файлы, Медиа, Скиллы, Музыка, Память, Браузер ─ */
+  .panel-head {
+    padding: 10px 12px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .panel-head .segmented {
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .panel-head .segmented::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Файлы: быстрый доступ превращается в горизонтальную ленту чипов */
+  .files-layout {
     display: flex !important;
     flex-direction: column !important;
-    overflow-y: auto;
+    grid-template-columns: none !important;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .files-tree {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px !important;
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    flex-shrink: 0;
+    scrollbar-width: none;
+  }
+  .files-tree::-webkit-scrollbar {
+    display: none;
+  }
+  .files-tree .tree-item {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    margin: 0;
+    padding: 6px 11px;
+    border-radius: 99px;
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--surface) 52%, transparent);
+  }
+  .files-tree .tree-item.active {
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    box-shadow: none;
+  }
+  .files-main {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .files-toolbar {
+    padding: 8px 10px;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .files-path {
+    min-width: 140px;
+  }
+  .files-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px;
+    padding: 10px;
   }
 
-  /* Модальные окна и Настройки во весь экран телефона */
+  /* Медиа-студия */
+  .media-layout {
+    display: flex !important;
+    flex-direction: column !important;
+    grid-template-columns: none !important;
+    gap: 12px;
+    padding: 12px;
+    overflow-y: auto !important;
+  }
+  .media-controls {
+    overflow: visible;
+    padding-right: 0;
+    flex-shrink: 0;
+  }
+  .media-layout > .panel-body {
+    overflow: visible;
+    flex-shrink: 0;
+  }
+  .media-gallery {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    overflow: visible;
+    padding: 10px !important;
+  }
+  .media-item-actions {
+    opacity: 1 !important;
+  }
+
+  /* Скиллы */
+  .skills-toolbar {
+    padding: 10px 12px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .skills-toolbar .search-input {
+    flex: 1 1 100%;
+    max-width: none !important;
+  }
+  .skills-grid {
+    grid-template-columns: 1fr !important;
+    padding: 12px;
+    gap: 10px;
+  }
+
+  /* Браузер */
+  .browser-toolbar {
+    padding: 7px 8px;
+    gap: 5px;
+  }
+  .browser-url input {
+    font-size: 13px;
+  }
+
+  /* Память */
+  .memory-layout {
+    display: flex !important;
+    flex-direction: column !important;
+    grid-template-columns: none !important;
+    overflow-y: auto !important;
+  }
+  .memory-layout > .memory-list {
+    padding: 12px;
+    overflow: visible;
+    flex: 0 0 auto;
+  }
+  .memory-actions {
+    opacity: 1 !important;
+  }
+  .memory-detail {
+    border-left: 0 !important;
+    border-top: 1px solid var(--border);
+    padding: 14px 12px;
+    flex-shrink: 0;
+  }
+
+  /* Мини-плеер над нижним таббаром */
+  .player-bar {
+    padding: 7px 10px;
+    gap: 8px;
+  }
+  .player-meta {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+  }
+  .player-progress,
+  .player-bars,
+  .player-volume {
+    display: none !important;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     МОДАЛЬНЫЕ ОКНА И ПОЛНОЭКРАННЫЕ МОБИЛЬНЫЕ НАСТРОЙКИ (.modal.settings)
+     ══════════════════════════════════════════════════════════════════════ */
   .modal-backdrop {
     padding: 8px;
     align-items: flex-end;
   }
-  .modal,
-  .settings-modal {
+  .modal {
     width: 100% !important;
     max-width: 100% !important;
     max-height: 92dvh !important;
-    border-radius: 16px !important;
+    border-radius: 18px !important;
+    display: flex;
+    flex-direction: column;
   }
-  .settings-modal {
+  .modal-head {
+    padding: 13px 14px;
+    flex-shrink: 0;
+  }
+  .modal-body {
+    padding: 14px;
+    max-height: calc(92dvh - 122px) !important;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .modal-foot {
+    padding: 10px 14px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+  }
+
+  /* Полноэкранный режим Настроек на телефоне без боковой колонки 236px! */
+  .modal-backdrop.settings-backdrop {
+    padding: 0 !important;
+    align-items: stretch !important;
+  }
+  .modal.settings {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+    border: 0 !important;
     display: flex !important;
     flex-direction: column !important;
-    height: 90dvh !important;
+    grid-template-columns: none !important;
+    overflow: hidden;
   }
-  .settings-sidebar {
-    width: 100% !important;
-    border-right: 0 !important;
+
+  .settings-mobile-bar {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
     border-bottom: 1px solid var(--border);
-    padding: 8px 10px !important;
+    background: color-mix(in srgb, var(--bg1) 96%, black);
+    flex-shrink: 0;
+  }
+  .settings-mobile-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    font-size: 13.5px;
+    font-weight: 700;
+  }
+  .settings-mobile-heading {
+    letter-spacing: 0.04em;
+  }
+  .settings-mobile-sep {
+    color: var(--text-faint);
+  }
+  .settings-mobile-section {
+    color: var(--accent);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .settings-mobile-bar .icon-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+  }
+
+  /* Горизонтальная скроллируемая лента разделов вместо узкого левого меню */
+  .settings-nav {
     display: flex !important;
     flex-direction: row !important;
+    align-items: center;
+    gap: 6px;
+    width: 100% !important;
+    padding: 8px 12px !important;
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg0) 65%, var(--bg1));
     overflow-x: auto !important;
+    overflow-y: hidden !important;
+    flex-shrink: 0;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .settings-nav::-webkit-scrollbar {
+    display: none;
+  }
+  .settings-nav-brand,
+  .settings-nav-sep,
+  .settings-nav-foot {
+    display: none !important;
+  }
+  .settings-nav-item {
+    width: auto !important;
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+    padding: 7px 12px !important;
+    gap: 6px !important;
+    border-radius: 99px !important;
+    font-size: 12px !important;
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--surface) 52%, transparent);
+  }
+  .settings-nav-item.active {
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+    border-color: color-mix(in srgb, var(--accent) 48%, transparent);
+  }
+
+  .settings-main {
+    flex: 1 1 auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  .settings-head {
+    display: none !important;
+  }
+  .settings-body {
+    flex: 1 1 auto;
+    padding: 14px 14px calc(24px + env(safe-area-inset-bottom, 0px)) !important;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Поля настроек: тумблеры в одну строку, селекты и инпуты — на всю ширину */
+  .field.field-inline {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .field.field-inline .field-text {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .field.field-stack-mobile {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .field.field-stack-mobile .field-control {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+  .field.field-stack-mobile .field-control .input,
+  .field.field-stack-mobile .field-control .select,
+  .field.field-stack-mobile .field-control input[type="range"] {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    flex: 1 1 auto;
+  }
+
+  /* Карточки провайдеров на всю ширину экрана */
+  .provider-row {
+    padding: 11px 12px;
+    gap: 10px;
+    align-items: center;
+  }
+  .provider-logo {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+  .provider-info {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .provider-name {
+    flex-wrap: wrap;
+    gap: 5px;
+    font-size: 13px;
+  }
+  .provider-tagline {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.35;
+    margin-top: 3px;
+  }
+  .provider-url {
+    display: none;
+  }
+  .provider-actions {
     gap: 6px;
     flex-shrink: 0;
   }
-  .settings-sidebar .sidebar-section-title {
+  .provider-actions .icon-btn.sm {
+    width: 32px;
+    height: 32px;
+  }
+  .provider-detail {
+    padding: 12px;
+  }
+  .provider-detail-head {
+    flex-wrap: wrap;
+  }
+  .provider-detail-grid {
+    grid-template-columns: 1fr !important;
+    gap: 8px;
+  }
+
+  /* Темы, обои, доступ, скиллы, автоматизация, о программе */
+  .theme-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px;
+  }
+  .wallpaper-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .permission-cards,
+  .add-provider-grid,
+  .data-actions {
+    grid-template-columns: 1fr !important;
+  }
+  .skill-toggle-row {
+    gap: 8px;
+  }
+  .skill-toggle-row .skill-mini-desc {
     display: none;
   }
-  .settings-nav-item {
-    white-space: nowrap;
-    flex-shrink: 0;
-    padding: 7px 11px !important;
+  .automation-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
   }
-  .settings-main {
-    padding: 14px 12px !important;
-    flex: 1;
-    min-height: 0;
+  .automation-actions {
+    justify-content: flex-end;
+  }
+  .about-hero {
+    flex-direction: column;
+    text-align: center;
+    gap: 12px;
+    padding: 16px;
+  }
+  .about-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .about-stat:has(.v:nth-child(2)) {
+    min-width: 0;
+  }
+
+  /* Выбор модели, Онбординг, Палитра команд, Редактор скилла */
+  .picker-tabs {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .picker-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .picker-tab {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+  .picker-locked-card {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .onboarding {
+    max-height: 94dvh !important;
+  }
+  .onboarding-hero {
+    padding: 20px 16px 14px;
+  }
+  .onboarding-title {
+    font-size: 24px;
+    letter-spacing: 0.18em;
+  }
+  .onboarding-sub {
+    font-size: 12px;
+    line-height: 1.55;
+  }
+  .onboarding-body {
+    padding: 16px;
+  }
+  .onboarding-actions {
+    flex-direction: column;
+  }
+  .onboarding-actions .btn {
+    width: 100%;
+  }
+
+  .palette {
+    margin-top: 8px;
+    width: 100%;
+    max-height: 86dvh;
+  }
+  .palette-item .shortcut {
+    display: none;
+  }
+
+  .skill-editor-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .toaster {
+    top: calc(env(safe-area-inset-top, 0px) + 52px);
+    left: 10px;
+    right: 10px;
+    width: auto;
   }
 
   .ctx-menu {

@@ -182,7 +182,7 @@ export default function Dashboard() {
           <button className="btn btn-primary" onClick={() => createChat()}>
             <Icon name="plus" size={15} /> Новый диалог
           </button>
-          <button className="btn" onClick={() => dispatch({ type: 'SET_MODAL', modal: 'shortcuts' })}>
+          <button className="btn hide-mobile" onClick={() => dispatch({ type: 'SET_MODAL', modal: 'shortcuts' })}>
             <Icon name="keyboard" size={14} /> Горячие клавиши
           </button>
         </div>

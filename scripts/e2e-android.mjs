@@ -228,11 +228,37 @@ clickButton('Обзор');
 await wait(300);
 check('android: dashboard shows real phone telemetry', html().includes('Snapdragon 8 Gen 3') || html().includes('Samsung Galaxy S24') || html().includes('Процессор'));
 
-// Открываем боковое меню через кнопку «Меню» нижней панели и проверяем 14 встроенных скиллов и ридер-браузер
+// Открываем боковое меню через кнопку «Меню» нижней панели и проверяем мобильные Настройки
 clickButton('Меню', true);
 await wait(180);
 check('android: mobile sidebar drawer opens', Boolean(document.querySelector('.sidebar.mobile-open')));
 
+clickButton('Настройки');
+await wait(220);
+check(
+  'android: mobile settings renders mobile top bar & hides Windows-only autostart/tray',
+  Boolean(document.querySelector('.modal.settings'))
+    && Boolean(document.querySelector('.settings-mobile-bar'))
+    && !html().includes('Запускать вместе с Windows')
+    && !html().includes('Сворачивать в трей')
+    && html().includes('Android · local-first')
+);
+clickButton('Провайдеры');
+await wait(180);
+const firstProvInfo = document.querySelector('.provider-info');
+if (firstProvInfo) firstProvInfo.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await wait(150);
+check(
+  'android: tapping provider card expands full-width provider settings on phone',
+  Boolean(document.querySelector('.provider-detail'))
+);
+const closeSettingsBtn = document.querySelector('.settings-mobile-bar button');
+if (closeSettingsBtn) closeSettingsBtn.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await wait(160);
+check('android: mobile settings close button dismisses modal', !document.querySelector('.modal.settings'));
+
+clickButton('Меню', true);
+await wait(150);
 clickButton('Скиллы');
 await wait(250);
 check('android: bundled 14 skills loaded in APK', html().includes('Coding') && html().includes('Web Research'));
