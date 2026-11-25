@@ -170,7 +170,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Build Arena Windows application
-        run: npx electron-builder --win portable --config subscription-apps/arena-windows/builder.yml --publish never
+        shell: pwsh
+        run: |
+          npx electron-builder --win portable --config subscription-apps/arena-windows/builder.yml --publish never *> arena-build.log
+          $code = $LASTEXITCODE
+          Get-Content arena-build.log
+          if ($code -ne 0) {
+            $message = (Get-Content arena-build.log -Raw).Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+            Write-Host "::error::$message"
+            exit $code
+          }
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       - name: Build independent service launchers

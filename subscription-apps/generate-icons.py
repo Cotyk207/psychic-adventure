@@ -23,8 +23,10 @@ GLYPHS = {
 for name, (letter, color) in SERVICES.items():
     rgb = tuple(int(color[i:i + 2], 16) for i in (1, 3, 5))
     pixels = bytearray()
-    for y in range(48):
-        for x in range(48):
+    size = 256 if name == 'arena' else 48
+    for pixel_y in range(size):
+        for pixel_x in range(size):
+            x, y = pixel_x * 48 // size, pixel_y * 48 // size
             # Bottom-up ICO bitmap; a round dark tile with a service-coloured monogram.
             xx, yy = x - 23.5, (47 - y) - 23.5
             visible = xx * xx + yy * yy <= 23 * 23
@@ -32,10 +34,10 @@ for name, (letter, color) in SERVICES.items():
             ink = 0 <= row < 7 and 0 <= col < 5 and GLYPHS[letter][row][col] == '1'
             r, g, b = rgb if ink else (27, 28, 39)
             pixels.extend((b, g, r, 255 if visible else 0))
-    header = struct.pack('<IIIHHIIIIII', 40, 48, 96, 1, 32, 0, len(pixels), 0, 0, 0, 0)
-    mask = bytes(8 * 48)
+    header = struct.pack('<IIIHHIIIIII', 40, size, size * 2, 1, 32, 0, len(pixels), 0, 0, 0, 0)
+    mask = bytes(((size + 31) // 32) * 4 * size)
     bitmap = header + pixels + mask
-    ico = struct.pack('<HHH', 0, 1, 1) + struct.pack('<BBBBHHII', 48, 48, 0, 0, 1, 32, len(bitmap), 22) + bitmap
+    ico = struct.pack('<HHH', 0, 1, 1) + struct.pack('<BBBBHHII', size % 256, size % 256, 0, 0, 1, 32, len(bitmap), 22) + bitmap
     out = ROOT / 'subscription-apps' / 'icons' / f'{name}.ico'
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_bytes(ico)
