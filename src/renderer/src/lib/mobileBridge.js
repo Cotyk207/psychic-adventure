@@ -1525,6 +1525,14 @@ export function createMobileBridge() {
     'config:get': async () => config,
     'config:getKey': async ({ key }) => getByPath(config, key),
     'config:set': async ({ key, value }) => {
+      if (key === 'workbench.notes') {
+        // Commit to persistent storage first; a quota/storage error must not claim success.
+        const next = deepClone(config);
+        setByPath(next, key, value);
+        localStorage.setItem(STORAGE_KEYS.config, JSON.stringify(next));
+        config = next;
+        return getByPath(config, key);
+      }
       setByPath(config, key, value);
       writeJson(STORAGE_KEYS.config, config);
       return getByPath(config, key);

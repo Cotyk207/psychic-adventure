@@ -9,6 +9,7 @@ const VIEWS = [
   { id: 'chat', label: 'Диалоги', icon: 'message-square' },
   { id: 'skills', label: 'Скиллы', icon: 'sparkles' },
   { id: 'media', label: 'Медиа-студия', icon: 'image' },
+  { id: 'workspace', label: 'Мастерская', icon: 'layers' },
   { id: 'aisites', label: 'ИИ-сайты', icon: 'globe' },
   { id: 'browser', label: 'Браузер', icon: 'globe' },
   { id: 'files', label: 'Файлы', icon: 'folder' },

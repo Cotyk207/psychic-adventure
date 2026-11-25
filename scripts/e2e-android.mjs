@@ -401,6 +401,56 @@ for (const [id, expected] of [
     saved.messages.some(m => m.role === 'assistant' && m.content.includes('Файл phone-note.txt')));
 }
 
+// Заметка сохраняется локально, черновик и таймер не исчезают при смене разделов.
+clickButton('Меню', true);
+await wait(120);
+document.querySelector('.nav-item[title="Мастерская"]')?.click();
+await wait(160);
+const workspaceButton = (selector, text) => [...document.querySelectorAll(selector)].find(b => b.textContent.trim().includes(text));
+workspaceButton('.workbench-list-head button', 'Создать')?.click();
+await wait(80);
+const mobileSet = (selector, value) => {
+  const el = document.querySelector(selector);
+  if (!el) return;
+  const proto = el.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+  Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, value);
+  el.dispatchEvent(new window.Event('input', { bubbles: true }));
+};
+mobileSet('[aria-label="Заголовок заметки"]', 'На телефоне');
+mobileSet('[aria-label="Текст заметки"]', 'Заметка Android');
+await wait(80);
+workspaceButton('.workbench-editor-actions button', 'Сохранить')?.click();
+await wait(180);
+const savedConfig = JSON.parse(localStorage.getItem('psychic:mobile:v4:config'));
+check('android: workspace note saved in persistent storage', savedConfig.workbench?.notes?.[0]?.content === 'Заметка Android');
+mobileSet('[aria-label="Текст заметки"]', 'Черновик на телефоне');
+await wait(80);
+[...document.querySelectorAll('.mobile-tabbar button')].find(b => b.textContent.trim() === 'Обзор')?.click();
+await wait(120);
+clickButton('Меню', true);
+await wait(100);
+document.querySelector('.nav-item[title="Мастерская"]')?.click();
+await wait(100);
+check('android: workspace draft survives tab changes', document.querySelector('[aria-label="Текст заметки"]')?.value === 'Черновик на телефоне');
+workspaceButton('.workbench-editor-actions button', 'Сохранить')?.click();
+await wait(140);
+workspaceButton('.workbench-tabs button', 'Фокус')?.click();
+await wait(80);
+workspaceButton('.focus-presets button', '5 мин')?.click();
+workspaceButton('.focus-controls button', 'Старт')?.click();
+await wait(90);
+check('android: focus timer starts', Boolean(workspaceButton('.focus-controls button', 'Пауза')));
+workspaceButton('.focus-controls button', 'Сброс')?.click();
+const storageProto = Object.getPrototypeOf(localStorage);
+const storageSet = storageProto.setItem;
+storageProto.setItem = () => { throw new Error('quota exceeded'); };
+let quotaFailure = false;
+try { await window.psychic.invoke('config:set', { key: 'workbench.notes', value: [{ id: 'lost' }] }); }
+catch { quotaFailure = true; }
+finally { storageProto.setItem = storageSet; }
+const afterQuota = await window.psychic.invoke('config:get');
+check('android: note storage error is reported and rolled back', quotaFailure && afterQuota.workbench.notes[0].content === 'Черновик на телефоне');
+
 console.error = origErr;
 
 console.log('\n=== Android APK Runtime E2E results ===');

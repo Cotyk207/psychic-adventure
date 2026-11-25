@@ -185,7 +185,7 @@ function registerIpc(deps) {
   handle('config:get', () => store.get());
   handle('config:getKey', ({ key }) => store.get(key));
   handle('config:set', ({ key, value }) => {
-    store.set(key, value);
+    store.set(key, value, { strict: key === 'workbench.notes' });
     return store.get(key);
   });
   handle('config:patch', ({ value }) => store.patch(value));

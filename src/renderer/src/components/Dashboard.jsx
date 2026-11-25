@@ -21,6 +21,7 @@ const QUICK_ACTIONS = [
   { label: 'Музыка', icon: 'music', action: 'music' },
   { label: 'Терминал', icon: 'terminal', action: 'terminal' },
   { label: 'Браузер', icon: 'globe', action: 'browser' },
+  { label: 'Мастерская', icon: 'layers', action: 'workspace' },
   { label: 'Настройки', icon: 'settings', action: 'settings' },
 ];
 
@@ -145,6 +146,7 @@ export default function Dashboard() {
       case 'music': setView('music'); break;
       case 'terminal': setView('terminal'); break;
       case 'browser': setView('browser'); break;
+      case 'workspace': setView('workspace'); break;
       case 'settings': openSettings('general'); break;
       default: break;
     }

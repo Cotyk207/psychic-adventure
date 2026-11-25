@@ -9,6 +9,7 @@ const NAV = [
   { id: 'chat', label: 'Диалоги', icon: 'message-square', view: 'chat' },
   { id: 'skills', label: 'Скиллы', icon: 'sparkles', view: 'skills' },
   { id: 'media', label: 'Медиа-студия', icon: 'image', view: 'media' },
+  { id: 'workspace', label: 'Мастерская', icon: 'layers', view: 'workspace' },
   { id: 'aisites', label: 'ИИ-сайты', icon: 'globe', view: 'aisites' },
   { id: 'browser', label: 'Браузер', icon: 'globe', view: 'browser' },
   { id: 'files', label: 'Файлы', icon: 'folder', view: 'files' },

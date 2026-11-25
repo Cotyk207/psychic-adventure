@@ -29,6 +29,7 @@ import MediaRenderer from './components/MediaRenderer';
 import ErrorBoundary from './components/ErrorBoundary';
 import Dashboard from './components/Dashboard';
 import AISites from './components/AISites';
+import Workspace from './components/Workspace';
 import ShortcutHelp from './components/ShortcutHelp';
 import ContextMenu from './components/ContextMenu';
 import ReasoningModal from './components/ReasoningModal';
@@ -37,6 +38,7 @@ import { getModelMeta } from './lib/models';
 const VIEW_META = {
   dashboard: { title: 'Обзор', icon: 'zap' },
   aisites: { title: 'ИИ-сайты', icon: 'globe' },
+  workspace: { title: 'Мастерская', icon: 'layers' },
   chat: { title: 'Диалог', icon: 'message-square' },
   skills: { title: 'Скиллы', icon: 'sparkles' },
   media: { title: 'Медиа-студия', icon: 'image' },
@@ -142,6 +144,9 @@ function MobileTabBar({ view, onSelectView, onToggleMenu, menuOpen }) {
 function Shell() {
   const { state, dispatch, setView, createChat, openSettings, closeModal, updateConfig, stopGeneration, player, toast } = useApp();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [workspaceVisited, setWorkspaceVisited] = useState(false);
+
+  useEffect(() => { if (state.view === 'workspace') setWorkspaceVisited(true); }, [state.view]);
 
   useEffect(() => {
     const onKeyDown = (event) => {
@@ -220,7 +225,8 @@ function Shell() {
         <main className={cn('main', state.view === 'browser' && 'browser-main')}>
           <MainHead />
           <div style={{ display: 'flex', flex: 1, minHeight: 0, position: 'relative' }}>
-            {renderView()}
+            {state.view !== 'workspace' && renderView()}
+            {(workspaceVisited || state.view === 'workspace') && <div style={{ display: state.view === 'workspace' ? 'flex' : 'none', flex: 1, minWidth: 0, minHeight: 0 }}><Workspace /></div>}
           </div>
         </main>
       </div>

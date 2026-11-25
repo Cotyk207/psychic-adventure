@@ -1236,3 +1236,18 @@ test('каталог ИИ-сайтов содержит только уника�
     assert.ok(site.name && site.description && site.access);
   }
 });
+
+
+test('строгое сохранение заметок сообщает об ошибке записи и откатывает изменения', () => {
+  const singleton = require('../src/main/lib/store.cjs');
+  const isolated = Object.create(Object.getPrototypeOf(singleton));
+  isolated.data = { workbench: { notes: [{ id: 'old' }] } };
+  isolated.file = '/not-used';
+  isolated.listeners = new Set();
+  const original = fs.writeFileSync;
+  try {
+    fs.writeFileSync = () => { throw new Error('disk full'); };
+    assert.throws(() => isolated.set('workbench.notes', [{ id: 'new' }], { strict: true }), /disk full/);
+    assert.deepEqual(isolated.get('workbench.notes'), [{ id: 'old' }]);
+  } finally { fs.writeFileSync = original; }
+});
