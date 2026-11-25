@@ -288,7 +288,7 @@ check('dashboard quick actions', html().includes('Быстрые действи�
 const newChatBtn = [...document.querySelectorAll('button')].find((b) => (b.textContent || '').includes('Новый диалог'));
 if (newChatBtn) newChatBtn.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
 await wait(300);
-check('welcome screen', html().includes('NEURAL LINK'));
+check('welcome screen', html().includes('Привет! Что создадим?'));
 const promptsToggle = [...document.querySelectorAll('button')].find((b) => (b.textContent || '').includes('Мои промпты'));
 if (promptsToggle) promptsToggle.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
 await wait(150);

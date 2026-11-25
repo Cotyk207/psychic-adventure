@@ -59,6 +59,15 @@ function setByPath(obj, dotPath, value) {
 function filterFreeModels(providerOrId, models) {
   const providerId = typeof providerOrId === 'object' && providerOrId ? providerOrId.id : providerOrId;
   const list = Array.isArray(models) ? models : [];
+  // Mixed-price catalogs must never expose paid models as free. BlockRun and
+  // OVHcloud use a curated list; Kilo marks free models explicitly.
+  if (providerId === 'kilo') {
+    return list.filter((m) => String(m) === 'kilo-auto/free' || /:free$/i.test(String(m)));
+  }
+  if (providerId === 'blockrun' || providerId === 'ovhcloud') {
+    const allowed = new Set(PRESETS.providers.find((p) => p.id === providerId)?.models || []);
+    return list.filter((m) => allowed.has(String(m)));
+  }
   if (providerId === 'openrouter') {
     return list.filter((m) => /:free$/i.test(String(m)) || String(m) === 'openrouter/free');
   }
@@ -495,7 +504,7 @@ function buildProviderHeaders(provider) {
   if (provider.id === 'opencode') {
     h.Authorization = `Bearer ${provider.apiKey || 'public'}`;
     h['User-Agent'] = 'opencode/stable/1.0.0/opencode';
-  } else if (provider.apiKey) {
+  } else if (provider.apiKey && provider.id !== 'ovhcloud') {
     h.Authorization = `Bearer ${provider.apiKey}`;
   }
   if (provider.id === 'openrouter') {

@@ -153,7 +153,7 @@ await import(new URL('../.smoke/smoke-entry.mjs', import.meta.url));
 await wait(1350);
 
 check('e2e: booted without bootError', !html().includes('Не удалось запустить интерфейс') && !html().includes('could not be cloned'));
-check('e2e: onboarding shown on fresh start', html().includes('Локальный киберпанк-ассистент') && html().includes('Начать работу'));
+check('e2e: onboarding shown on fresh start', html().includes('Твой ИИ-ассистент для идей') && html().includes('Начать работу'));
 
 // Завершаем онбординг и проверяем запись onboardingDone на диск
 clickButton('Начать работу');

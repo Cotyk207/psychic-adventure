@@ -120,7 +120,7 @@ export default function SettingsModal({ initialTab }) {
           ))}
           <div className="settings-nav-sep" />
           <div className="settings-nav-foot">
-            v{state.appInfo?.version || '1.0.9'}
+            v{state.appInfo?.version || '1.0.10'}
             <br />
             {androidApp ? 'Android' : window.psychic?.platform === 'win32' ? 'Windows' : 'Desktop'} · local-first
           </div>
@@ -741,7 +741,7 @@ function ProvidersTab({ config, providers, onChange, onRefresh, toast }) {
       <div className="section">
         <div className="section-title"><Icon name="plug" size={13} /> Бесплатные провайдеры</div>
         <div className="section-hint">
-          В PSYCHIC оставлены только бесплатные модели: часть работает сразу без ключа (OpenCode Console, Pollinations, локальные),
+          В PSYCHIC оставлены только бесплатные модели: часть работает сразу без ключа (OpenCode, Pollinations, Kilo, OVHcloud, BlockRun и локальные),
           остальные — бесплатно по личному ключу регистрации. Ключи хранятся только локально на твоём устройстве.
         </div>
         <div className="picker-tabs" style={{ marginBottom: 12 }}>

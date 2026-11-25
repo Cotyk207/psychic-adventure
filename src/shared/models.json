@@ -58,6 +58,9 @@
     }
   },
   "exact": {
+    "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning": {"name": "Nemotron 3 Nano Omni", "context": "256k", "reasoning": true, "vision": true, "efforts": []},
+    "nvidia/nemotron-3.5-super-vl:free": {"name": "Nemotron 3.5 Super VL", "context": "256k", "reasoning": true, "vision": true, "efforts": []},
+    "nemotron3-omni-30b": {"name": "Nemotron 3 Omni 30B", "context": "128k", "reasoning": true, "vision": true, "efforts": []},
     "tidepool-alpha-free": {
       "name": "Tidepool Alpha Free",
       "context": "1M",

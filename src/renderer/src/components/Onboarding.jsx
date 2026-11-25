@@ -10,7 +10,7 @@ export default function Onboarding() {
   const androidApp = isAndroidApp();
 
   const features = [
-    { icon: 'cpu', title: 'Только бесплатные модели', text: 'OpenCode Console и Pollinations работают сразу без ключа. Groq, Gemini, OpenRouter Free и GitHub Models — бесплатно по ключу.' },
+    { icon: 'cpu', title: 'Только бесплатные модели', text: 'OpenCode, Pollinations, Kilo, OVHcloud и BlockRun доступны без ключа. Другие провайдеры подключаются в настройках.' },
     { icon: 'brain', title: 'Управление рассуждениями ИИ', text: 'Смотри ход мыслей нейросети и настраивай глубину рассуждений: от быстрого ответа до максимума.' },
     {
       icon: 'folder',
@@ -34,8 +34,8 @@ export default function Onboarding() {
           <div className="onboarding-title">PSYCHIC</div>
           <div className="onboarding-sub">
             {androidApp
-              ? 'Автономный киберпанк-ассистент на твоём смартфоне. Всё бесплатно, всё настраивается, все данные хранятся у тебя.'
-              : 'Локальный киберпанк-ассистент с полным доступом к компьютеру. Всё бесплатно, всё настраивается, всё остаётся у тебя.'}
+              ? 'Твой ИИ-ассистент для идей, файлов и повседневных задач — прямо на смартфоне.'
+              : 'Твой ИИ-ассистент для идей, файлов и повседневных задач — прямо на компьютере.'}
           </div>
         </div>
 

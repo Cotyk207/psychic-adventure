@@ -1,6 +1,7 @@
 'use strict';
 
 const MODELS_DATA = require('../../shared/models.json');
+const PRESETS = require('../../shared/providers.json');
 
 const EFFORT_ORDER = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
 
@@ -122,6 +123,15 @@ function getEffortSpec(effort) {
 function filterFreeModels(providerOrId, models) {
   const providerId = typeof providerOrId === 'object' && providerOrId ? providerOrId.id : providerOrId;
   const list = Array.isArray(models) ? models : [];
+  // Mixed-price catalogs must never expose paid models as free. BlockRun and
+  // OVHcloud use a curated list; Kilo marks free models explicitly.
+  if (providerId === 'kilo') {
+    return list.filter((m) => String(m) === 'kilo-auto/free' || /:free$/i.test(String(m)));
+  }
+  if (providerId === 'blockrun' || providerId === 'ovhcloud') {
+    const allowed = new Set(PRESETS.providers.find((p) => p.id === providerId)?.models || []);
+    return list.filter((m) => allowed.has(String(m)));
+  }
   if (providerId === 'openrouter') {
     return list.filter((m) => /:free$/i.test(String(m)) || String(m) === 'openrouter/free');
   }
